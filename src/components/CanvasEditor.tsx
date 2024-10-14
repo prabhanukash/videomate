@@ -1,16 +1,26 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Stage, Layer, Rect, Text, Image, Transformer } from 'react-konva';
-import { Image as ImageIcon, Type, Square, Undo, Redo, Save, Upload } from 'lucide-react';
+import { Image as ImageIcon, Type, Square, Undo, Redo, Save, Upload, Code, Maximize2, Check, X } from 'lucide-react';
 import useImage from 'use-image';
+import { AdSizes } from '../utils/adSizes';
 
 const CanvasEditor = () => {
   const [elements, setElements] = useState([]);
   const [selectedElement, setSelectedElement] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [stageSize, setStageSize] = useState({ width: 1080, height: 1080 });
+  const [stageSize, setStageSize] = useState(AdSizes['Medium Rectangle']);
+  const [showJson, setShowJson] = useState(false);
+  const [jsonContent, setJsonContent] = useState('');
+  const [showResizeInputs, setShowResizeInputs] = useState(false);
+  const [customWidth, setCustomWidth] = useState(stageSize.width);
+  const [customHeight, setCustomHeight] = useState(stageSize.height);
+  const [templateName, setTemplateName] = useState('Untitled Template');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempName, setTempName] = useState('');
   const stageRef = useRef(null);
   const transformerRef = useRef(null);
+  const jsonEditorRef = useRef(null);
 
   useEffect(() => {
     const checkDeselect = (e) => {
@@ -33,6 +43,10 @@ const CanvasEditor = () => {
       transformerRef.current.getLayer().batchDraw();
     }
   }, [selectedElement]);
+
+  useEffect(() => {
+    setJsonContent(JSON.stringify(elements, null, 2));
+  }, [elements]);
 
   const addElement = (type) => {
     const newElement = {
@@ -151,215 +165,344 @@ const CanvasEditor = () => {
     reader.readAsText(file);
   };
 
+  const updateCanvasFromJson = (newJsonContent) => {
+    try {
+      const newElements = JSON.parse(newJsonContent);
+      setElements(newElements);
+      addToHistory(newElements);
+    } catch (error) {
+      console.error('Invalid JSON:', error);
+      // Don't update the canvas if the JSON is invalid
+    }
+  };
+
+  const handleJsonChange = () => {
+    const newContent = jsonEditorRef.current.innerText;
+    setJsonContent(newContent);
+    updateCanvasFromJson(newContent);
+  };
+
+  const formatJson = (json) => {
+    try {
+      return JSON.stringify(JSON.parse(json), null, 2);
+    } catch {
+      return json;
+    }
+  };
+
+  const handleResize = () => {
+    setStageSize({ width: customWidth, height: customHeight });
+    setShowResizeInputs(false);
+  };
+
+  const handleNameClick = () => {
+    setTempName(templateName);
+    setIsEditingName(true);
+  };
+
+  const handleNameChange = (e) => {
+    setTempName(e.target.value);
+  };
+
+  const handleNameSave = () => {
+    setTemplateName(tempName);
+    setIsEditingName(false);
+  };
+
+  const handleNameCancel = () => {
+    setIsEditingName(false);
+  };
+
+  const handleNameKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleNameSave();
+    } else if (e.key === 'Escape') {
+      handleNameCancel();
+    }
+  };
+
   const ImageElement = ({ src, ...props }) => {
     const [image] = useImage(src);
     return <Image image={image} {...props} />;
   };
 
   return (
-    <div className="flex h-screen">
-      <div className="w-64 bg-gray-100 p-4">
-        <h2 className="text-lg font-semibold mb-4">Tools</h2>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => addElement('text')} className="p-2 bg-blue-500 text-white rounded">
-            <Type size={20} />
-          </button>
-          <button onClick={() => addElement('shape')} className="p-2 bg-blue-500 text-white rounded">
-            <Square size={20} />
-          </button>
-          <label className="p-2 bg-blue-500 text-white rounded cursor-pointer">
-            <ImageIcon size={20} />
-            <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*" />
-          </label>
-          <button onClick={undo} className="p-2 bg-blue-500 text-white rounded" disabled={historyIndex <= 0}>
-            <Undo size={20} />
-          </button>
-          <button onClick={redo} className="p-2 bg-blue-500 text-white rounded" disabled={historyIndex >= history.length - 1}>
-            <Redo size={20} />
-          </button>
-          <button onClick={saveTemplate} className="p-2 bg-blue-500 text-white rounded">
-            <Save size={20} />
-          </button>
-          <label className="p-2 bg-blue-500 text-white rounded cursor-pointer">
-            <Upload size={20} />
-            <input type="file" className="hidden" onChange={loadTemplate} accept=".json" />
-          </label>
-        </div>
-      </div>
-      <div className="flex-1 flex flex-col">
-        <div className="flex-1 bg-gray-200 p-4 overflow-auto">
-          <Stage
-            width={stageSize.width}
-            height={stageSize.height}
-            ref={stageRef}
-            onMouseDown={e => {
-              if (e.target === e.target.getStage()) {
-                setSelectedElement(null);
-              }
-            }}
-          >
-            <Layer>
-              {elements.map((el) => {
-                const ElementComponent = el.type === 'text' ? Text : el.type === 'image' ? ImageElement : Rect;
-                return (
-                  <ElementComponent
-                    key={el.id}
-                    id={el.id}
-                    {...el}
-                    draggable
-                    onClick={() => handleElementClick(el)}
-                    onDragEnd={(e) => handleDragEnd(e, el.id)}
-                    onTransformEnd={(e) => handleTransformEnd(e, el.id)}
-                  />
-                );
-              })}
-              {selectedElement && (
-                <Transformer
-                  ref={transformerRef}
-                  boundBoxFunc={(oldBox, newBox) => {
-                    if (newBox.width < 5 || newBox.height < 5) {
-                      return oldBox;
-                    }
-                    return newBox;
-                  }}
+    <div className="flex flex-col h-screen">
+      <div className="bg-gray-100 p-4">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center">
+            {isEditingName ? (
+              <>
+                <input
+                  type="text"
+                  value={tempName}
+                  onChange={handleNameChange}
+                  onKeyDown={handleNameKeyDown}
+                  autoFocus
+                  className="text-xl font-semibold bg-transparent border-b border-gray-300 focus:outline-none focus:border-blue-500 mr-2"
                 />
-              )}
-            </Layer>
-          </Stage>
-        </div>
-        <div className="h-32 bg-gray-300 p-4">
-          <h2 className="text-lg font-semibold mb-2">Timeline</h2>
-          <div className="flex items-center space-x-2">
-            {elements.map((el) => (
-              <div
-                key={el.id}
-                className="bg-blue-200 p-2 rounded"
-                style={{
-                  width: `${(el.duration / 10) * 100}%`,
-                  marginLeft: `${(el.startTime / 10) * 100}%`,
-                }}
+                <button onClick={handleNameSave} className="p-1 text-green-500 hover:text-green-700">
+                  <Check size={20} />
+                </button>
+                <button onClick={handleNameCancel} className="p-1 text-red-500 hover:text-red-700">
+                  <X size={20} />
+                </button>
+              </>
+            ) : (
+              <h1 
+                onClick={handleNameClick} 
+                className="text-xl font-semibold cursor-pointer hover:text-blue-500"
               >
-                {el.type}
-              </div>
-            ))}
+                {templateName}
+              </h1>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => addElement('text')} className="p-2 bg-blue-500 text-white rounded">
+              <Type size={20} />
+            </button>
+            <button onClick={() => addElement('shape')} className="p-2 bg-blue-500 text-white rounded">
+              <Square size={20} />
+            </button>
+            <label className="p-2 bg-blue-500 text-white rounded cursor-pointer">
+              <ImageIcon size={20} />
+              <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*" />
+            </label>
+            <button onClick={undo} className="p-2 bg-blue-500 text-white rounded" disabled={historyIndex <= 0}>
+              <Undo size={20} />
+            </button>
+            <button onClick={redo} className="p-2 bg-blue-500 text-white rounded" disabled={historyIndex >= history.length - 1}>
+              <Redo size={20} />
+            </button>
+            <button onClick={saveTemplate} className="p-2 bg-blue-500 text-white rounded">
+              <Save size={20} />
+            </button>
+            <label className="p-2 bg-blue-500 text-white rounded cursor-pointer">
+              <Upload size={20} />
+              <input type="file" className="hidden" onChange={loadTemplate} accept=".json" />
+            </label>
+            <button onClick={() => setShowJson(!showJson)} className="p-2 bg-blue-500 text-white rounded">
+              <Code size={20} />
+            </button>
+            <button onClick={() => setShowResizeInputs(!showResizeInputs)} className="p-2 bg-blue-500 text-white rounded">
+              <Maximize2 size={20} />
+            </button>
           </div>
         </div>
+        {showResizeInputs && (
+          <div className="flex justify-end gap-2 mb-4">
+            <input
+              type="number"
+              placeholder="Width"
+              value={customWidth}
+              onChange={(e) => setCustomWidth(Number(e.target.value))}
+              className="w-24 p-2 border rounded"
+            />
+            <input
+              type="number"
+              placeholder="Height"
+              value={customHeight}
+              onChange={(e) => setCustomHeight(Number(e.target.value))}
+              className="w-24 p-2 border rounded"
+            />
+            <button onClick={handleResize} className="p-2 bg-blue-500 text-white rounded">
+              Resize
+            </button>
+          </div>
+        )}
       </div>
-      <div className="w-64 bg-gray-100 p-4">
-        <h2 className="text-lg font-semibold mb-4">Properties</h2>
-        {selectedElement && (
-          <div className="space-y-2">
-            <label className="block">
-              X:
-              <input
-                type="number"
-                value={selectedElement.x}
-                onChange={(e) => updateElement(selectedElement.id, { x: Number(e.target.value) })}
-                className="w-full p-1 border rounded"
+      <div className="flex flex-1 overflow-hidden">
+        {showJson && (
+          <div className="w-96 bg-gray-800 p-4 overflow-y-auto">
+            <h2 className="text-lg font-semibold mb-4 text-white">JSON Editor</h2>
+            <div className="bg-gray-900 rounded-lg p-4 shadow-inner">
+              <div
+                ref={jsonEditorRef}
+                contentEditable={true}
+                onInput={handleJsonChange}
+                suppressContentEditableWarning={true}
+                className="text-sm text-white overflow-auto outline-none font-mono whitespace-pre-wrap"
+                style={{ maxHeight: 'calc(100vh - 200px)' }}
+                dangerouslySetInnerHTML={{ __html: formatJson(jsonContent) }}
               />
-            </label>
-            <label className="block">
-              Y:
-              <input
-                type="number"
-                value={selectedElement.y}
-                onChange={(e) => updateElement(selectedElement.id, { y: Number(e.target.value) })}
-                className="w-full p-1 border rounded"
-              />
-            </label>
-            <label className="block">
-              Width:
-              <input
-                type="number"
-                value={selectedElement.width}
-                onChange={(e) => updateElement(selectedElement.id, { width: Number(e.target.value) })}
-                className="w-full p-1 border rounded"
-              />
-            </label>
-            <label className="block">
-              Height:
-              <input
-                type="number"
-                value={selectedElement.height}
-                onChange={(e) => updateElement(selectedElement.id, { height: Number(e.target.value) })}
-                className="w-full p-1 border rounded"
-              />
-            </label>
-            <label className="block">
-              Rotation:
-              <input
-                type="number"
-                value={selectedElement.rotation}
-                onChange={(e) => updateElement(selectedElement.id, { rotation: Number(e.target.value) })}
-                className="w-full p-1 border rounded"
-              />
-            </label>
-            {selectedElement.type === 'text' && (
-              <>
-                <label className="block">
-                  Text:
-                  <input
-                    type="text"
-                    value={selectedElement.text}
-                    onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })}
-                    className="w-full p-1 border rounded"
+            </div>
+          </div>
+        )}
+        <div className="flex-1 bg-gray-200 p-4 overflow-auto flex items-center justify-center">
+          <div className="bg-white shadow-lg">
+            <Stage
+              width={stageSize.width}
+              height={stageSize.height}
+              ref={stageRef}
+              onMouseDown={e => {
+                if (e.target === e.target.getStage()) {
+                  setSelectedElement(null);
+                }
+              }}
+            >
+              <Layer>
+                {elements.map((el) => {
+                  const ElementComponent = el.type === 'text' ? Text : el.type === 'image' ? ImageElement : Rect;
+                  return (
+                    <ElementComponent
+                      key={el.id}
+                      id={el.id}
+                      {...el}
+                      draggable
+                      onClick={() => handleElementClick(el)}
+                      onDragEnd={(e) => handleDragEnd(e, el.id)}
+                      onTransformEnd={(e) => handleTransformEnd(e, el.id)}
+                    />
+                  );
+                })}
+                {selectedElement && (
+                  <Transformer
+                    ref={transformerRef}
+                    boundBoxFunc={(oldBox, newBox) => {
+                      if (newBox.width < 5 || newBox.height < 5) {
+                        return oldBox;
+                      }
+                      return newBox;
+                    }}
                   />
-                </label>
-                <label className="block">
-                  Font Size:
-                  <input
-                    type="number"
-                    value={selectedElement.fontSize}
-                    onChange={(e) => updateElement(selectedElement.id, { fontSize: Number(e.target.value) })}
-                    className="w-full p-1 border rounded"
-                  />
-                </label>
-                <label className="block">
-                  Font Family:
-                  <select
-                    value={selectedElement.fontFamily}
-                    onChange={(e) => updateElement(selectedElement.id, { fontFamily: e.target.value })}
-                    className="w-full p-1 border rounded"
-                  >
-                    <option value="Arial">Arial</option>
-                    <option value="Helvetica">Helvetica</option>
-                    <option value="Times New Roman">Times New Roman</option>
-                    <option value="Courier New">Courier New</option>
-                  </select>
-                </label>
-              </>
-            )}
-            {(selectedElement.type === 'shape' || selectedElement.type === 'text') && (
+                )}
+              </Layer>
+            </Stage>
+          </div>
+        </div>
+        <div className="w-64 bg-gray-100 p-4 overflow-y-auto">
+          <h2 className="text-lg font-semibold mb-4">Properties</h2>
+          {selectedElement && (
+            <div className="space-y-2">
               <label className="block">
-                Fill:
+                X:
                 <input
-                  type="color"
-                  value={selectedElement.fill}
-                  onChange={(e) => updateElement(selectedElement.id, { fill: e.target.value })}
+                  type="number"
+                  value={selectedElement.x}
+                  onChange={(e) => updateElement(selectedElement.id, { x: Number(e.target.value) })}
                   className="w-full p-1 border rounded"
                 />
               </label>
-            )}
-            <label className="block">
-              Start Time:
-              <input
-                type="number"
-                value={selectedElement.startTime}
-                onChange={(e) => updateElement(selectedElement.id, { startTime: Number(e.target.value) })}
-                className="w-full p-1 border rounded"
-              />
-            </label>
-            <label className="block">
-              Duration:
-              <input
-                type="number"
-                value={selectedElement.duration}
-                onChange={(e) => updateElement(selectedElement.id, { duration: Number(e.target.value) })}
-                className="w-full p-1 border rounded"
-              />
-            </label>
-          </div>
-        )}
+              <label className="block">
+                Y:
+                <input
+                  type="number"
+                  value={selectedElement.y}
+                  onChange={(e) => updateElement(selectedElement.id, { y: Number(e.target.value) })}
+                  className="w-full p-1 border rounded"
+                />
+              </label>
+              <label className="block">
+                Width:
+                <input
+                  type="number"
+                  value={selectedElement.width}
+                  onChange={(e) => updateElement(selectedElement.id, { width: Number(e.target.value) })}
+                  className="w-full p-1 border rounded"
+                />
+              </label>
+              <label className="block">
+                Height:
+                <input
+                  type="number"
+                  value={selectedElement.height}
+                  onChange={(e) => updateElement(selectedElement.id, { height: Number(e.target.value) })}
+                  className="w-full p-1 border rounded"
+                />
+              </label>
+              <label className="block">
+                Rotation:
+                <input
+                  type="number"
+                  value={selectedElement.rotation}
+                  onChange={(e) => updateElement(selectedElement.id, { rotation: Number(e.target.value) })}
+                  className="w-full p-1 border rounded"
+                />
+              </label>
+              {selectedElement.type === 'text' && (
+                <>
+                  <label className="block">
+                    Text:
+                    <input
+                      type="text"
+                      value={selectedElement.text}
+                      onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })}
+                      className="w-full p-1 border rounded"
+                    />
+                  </label>
+                  <label className="block">
+                    Font Size:
+                    <input
+                      type="number"
+                      value={selectedElement.fontSize}
+                      onChange={(e) => updateElement(selectedElement.id, { fontSize: Number(e.target.value) })}
+                      className="w-full p-1 border rounded"
+                    />
+                  </label>
+                  <label className="block">
+                    Font Family:
+                    <select
+                      value={selectedElement.fontFamily}
+                      onChange={(e) => updateElement(selectedElement.id, { fontFamily: e.target.value })}
+                      className="w-full p-1 border rounded"
+                    >
+                      <option value="Arial">Arial</option>
+                      <option value="Helvetica">Helvetica</option>
+                      <option value="Times New Roman">Times New Roman</option>
+                      <option value="Courier New">Courier New</option>
+                    </select>
+                  </label>
+                </>
+              )}
+              {(selectedElement.type === 'shape' || selectedElement.type === 'text') && (
+                <label className="block">
+                  Fill:
+                  <input
+                    type="color"
+                    value={selectedElement.fill}
+                    onChange={(e) => updateElement(selectedElement.id, { fill: e.target.value })}
+                    className="w-full p-1 border rounded"
+                  />
+                </label>
+              )}
+              <label className="block">
+                Start Time:
+                <input
+                  type="number"
+                  value={selectedElement.startTime}
+                  onChange={(e) => updateElement(selectedElement.id, { startTime: Number(e.target.value) })}
+                  className="w-full p-1 border rounded"
+                />
+              </label>
+              <label className="block">
+                Duration:
+                <input
+                  type="number"
+                  value={selectedElement.duration}
+                  onChange={(e) => updateElement(selectedElement.id, { duration: Number(e.target.value) })}
+                  className="w-full p-1 border rounded"
+                />
+              </label>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="h-32 bg-gray-300 p-4">
+        <h2 className="text-lg font-semibold mb-2">Timeline</h2>
+        <div className="flex items-center space-x-2">
+          {elements.map((el) => (
+            <div
+              key={el.id}
+              className="bg-blue-200 p-2 rounded"
+              style={{
+                width: `${(el.duration / 10) * 100}%`,
+                marginLeft: `${(el.startTime / 10) * 100}%`,
+              }}
+            >
+              {el.type}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
