@@ -1,17 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Stage, Layer, Rect, Text, Image, Transformer } from 'react-konva';
-import { Image as ImageIcon, Type, Square, Undo, Redo, Save, Upload, Code, Maximize2, Check, X } from 'lucide-react';
+import { Image as ImageIcon, Type, Square, Undo, Redo, Save, Upload, Brackets, Maximize2, Check, X, Play, Pause, Edit2, Copy, Trash2 } from 'lucide-react';
 import useImage from 'use-image';
 import { AdSizes } from '../utils/adSizes';
-import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+import JSONEditor from 'react-json-editor-ajrm';
+import locale from 'react-json-editor-ajrm/locale/en';
+import LeftSidebar from './CanvasStage/LeftSidebar';
+import { useElementManagement } from '../hooks/useElementManagement';
+import { useAnimation } from '../hooks/useAnimation';
+import { useJsonEditor } from '../hooks/useJsonEditor';
+
 
 const CanvasEditor = () => {
   const [elements, setElements] = useState([]);
   const [selectedElement, setSelectedElement] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [stageSize, setStageSize] = useState(AdSizes['Medium Rectangle']);
+  const [stageSize, setStageSize] = useState(AdSizes['300X250']);
   const [showJson, setShowJson] = useState(false);
   const [jsonContent, setJsonContent] = useState('');
   const [showResizeInputs, setShowResizeInputs] = useState(false);
@@ -24,15 +29,10 @@ const CanvasEditor = () => {
   const transformerRef = useRef(null);
   const jsonEditorRef = useRef(null);
   const [cursorPosition, setCursorPosition] = useState(0);
-
-  const customStyle = {
-    ...tomorrow,
-    'hljs-string': { color: '#ce9178' },
-    'hljs-number': { color: '#b5cea8' },
-    'hljs-boolean': { color: '#569cd6' },
-    'hljs-null': { color: '#569cd6' },
-    'hljs-attr': { color: '#9cdcfe' },
-  };
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const animationRef = useRef(null);
+  const [clipboard, setClipboard] = useState(null);
 
   useEffect(() => {
     const checkDeselect = (e) => {
@@ -57,12 +57,14 @@ const CanvasEditor = () => {
   }, [selectedElement]);
 
   useEffect(() => {
+    // Ensure elements is properly stringified
     setJsonContent(JSON.stringify(elements, null, 2));
   }, [elements]);
 
-  const addElement = (type) => {
-    const newElement = {
+  const addElement = (type, event = null) => {
+    let newElement = {
       id: Date.now().toString(),
+      name: `New ${type}`,
       type,
       x: 100,
       y: 100,
@@ -76,9 +78,32 @@ const CanvasEditor = () => {
       duration: 5,
       startTime: 0,
     };
-    const newElements = [...elements, newElement];
-    setElements(newElements);
-    addToHistory(newElements);
+
+    if (type === 'image' && event) {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const aspect = img.width / img.height;
+          newElement = {
+            ...newElement,
+            width: 200,
+            height: 200 / aspect,
+            image: e.target.result,
+          };
+          const newElements = [...elements, newElement];
+          setElements(newElements);
+          addToHistory(newElements);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    } else {
+      const newElements = [...elements, newElement];
+      setElements(newElements);
+      addToHistory(newElements);
+    }
   };
 
   const handleElementClick = (element) => {
@@ -89,6 +114,9 @@ const CanvasEditor = () => {
     const newElements = elements.map(el => el.id === id ? { ...el, ...newProps } : el);
     setElements(newElements);
     addToHistory(newElements);
+    if (selectedElement && selectedElement.id === id) {
+      setSelectedElement({ ...selectedElement, ...newProps });
+    }
   };
 
   const addToHistory = (newElements) => {
@@ -100,15 +128,17 @@ const CanvasEditor = () => {
 
   const undo = () => {
     if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1);
-      setElements(history[historyIndex - 1]);
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setElements(history[newIndex]);
     }
   };
 
   const redo = () => {
     if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
-      setElements(history[historyIndex + 1]);
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setElements(history[newIndex]);
     }
   };
 
@@ -182,49 +212,21 @@ const CanvasEditor = () => {
       const newElements = JSON.parse(newJsonContent);
       setElements(newElements);
       addToHistory(newElements);
+      setJsonContent(newJsonContent);
     } catch (error) {
       console.error('Invalid JSON:', error);
     }
   };
 
-  const handleJsonChange = (e) => {
-    const newContent = e.currentTarget.innerText;
-    setJsonContent(newContent);
-
-    const selection = window.getSelection();
-    if (selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      setCursorPosition(range.startOffset);
+  const handleJsonChange = (editor, data, value) => {
+    setJsonContent(value);
+    try {
+      const parsedJson = JSON.parse(value);
+      updateCanvasFromJson(parsedJson);
+    } catch (error) {
+      console.error('Invalid JSON:', error);
     }
-
-    setTimeout(() => {
-      updateCanvasFromJson(newContent);
-    }, 0);
   };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault(); // Prevents new line on Enter
-      
-      // Insert a newline character at the cursor position
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        const newLineNode = document.createTextNode('\n');
-        range.insertNode(newLineNode);
-        range.setStartAfter(newLineNode);
-        range.setEndAfter(newLineNode);
-      if (range) {
-        selection.removeAllRanges();
-        selection.addRange(range);
-        // Update the cursor position
-        setCursorPosition(range.startOffset);
-      }
-      // Trigger the change event manually
-      handleJsonChange({ currentTarget: jsonEditorRef.current });
-    }
-  }
-};
 
   const formatJson = (json) => {
     try {
@@ -285,6 +287,129 @@ const CanvasEditor = () => {
     }
   }, [jsonContent, cursorPosition]);
 
+  const playAnimation = () => {
+    setIsPlaying(true);
+    animationRef.current = requestAnimationFrame(animate);
+  };
+
+  const pauseAnimation = () => {
+    setIsPlaying(false);
+    cancelAnimationFrame(animationRef.current);
+  };
+
+  const animate = (timestamp) => {
+    setCurrentTime((prevTime) => {
+      const newTime = prevTime + 1 / 60; // Assuming 60 FPS
+      return newTime > 10 ? 0 : newTime; // Reset after 10 seconds
+    });
+    animationRef.current = requestAnimationFrame(animate);
+  };
+
+  useEffect(() => {
+    return () => {
+      cancelAnimationFrame(animationRef.current);
+    };
+  }, []);
+
+  const updateElementKeyframe = (elementId, time, properties) => {
+    setElements((prevElements) =>
+      prevElements.map((el) =>
+        el.id === elementId
+          ? {
+              ...el,
+              keyframes: {
+                ...el.keyframes,
+                [time]: { ...el.keyframes[time], ...properties },
+              },
+            }
+          : el
+      )
+    );
+  };
+
+  const interpolateProperties = (element, time) => {
+    const keyframes = Object.entries(element.keyframes || {}).sort(
+      ([a], [b]) => parseFloat(a) - parseFloat(b)
+    );
+
+    if (keyframes.length === 0) return element;
+
+    const [prevTime, prevProps] =
+      keyframes.find(([t]) => parseFloat(t) > time) || keyframes[keyframes.length - 1];
+    const [nextTime, nextProps] =
+      keyframes.find(([t]) => parseFloat(t) > time) || keyframes[0];
+
+    const progress =
+      (time - parseFloat(prevTime)) / (parseFloat(nextTime) - parseFloat(prevTime));
+
+    const interpolatedProps = {};
+    for (const prop in prevProps) {
+      if (typeof prevProps[prop] === 'number') {
+        interpolatedProps[prop] =
+          prevProps[prop] + (nextProps[prop] - prevProps[prop]) * progress;
+      } else {
+        interpolatedProps[prop] = prevProps[prop];
+      }
+    }
+
+    return { ...element, ...interpolatedProps };
+  };
+
+  const customJsonEditorTheme = {
+    background: 'white',
+    background_warning: '#FFDADA',
+    background_success: '#DAFFD9',
+    background_error: '#FFDADA',
+    text_color: '#333',
+    string_color: '#C41A16',
+    number_color: '#1A01CC',
+    boolean_color: '#1A01CC',
+    null_color: '#808080',
+    key_color: '#881391',
+    line_numbers: '#888',
+    line_numbers_background: '#f0f0f0',
+    line_numbers_border: '#ccc',
+    border: '#ccc',
+  };
+
+  // Function to highlight the selected element in the JSON viewer
+  const highlightSelectedElementInJson = (json) => {
+    if (!selectedElement) return json;
+    
+    return json.replace(
+      new RegExp(`("id":\\s*"${selectedElement.id}"[^}]+})`, 'g'),
+      (match) => `<span style="background-color: #e6f3ff;">${match}</span>`
+    );
+  };
+
+  const copyElement = (id) => {
+    const elementToCopy = elements.find(el => el.id === id);
+    setClipboard(elementToCopy);
+  };
+
+  const pasteElement = () => {
+    if (clipboard) {
+      const newElement = {
+        ...clipboard,
+        id: Date.now().toString(),
+        name: `${clipboard.name} (Copy)`,
+        x: clipboard.x + 10,
+        y: clipboard.y + 10,
+      };
+      setElements([...elements, newElement]);
+      addToHistory([...elements, newElement]);
+    }
+  };
+
+  const deleteElement = (id) => {
+    const newElements = elements.filter(el => el.id !== id);
+    setElements(newElements);
+    addToHistory(newElements);
+    if (selectedElement && selectedElement.id === id) {
+      setSelectedElement(null);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen">
       <div className="bg-gray-100 p-4">
@@ -341,7 +466,7 @@ const CanvasEditor = () => {
               <input type="file" className="hidden" onChange={loadTemplate} accept=".json" />
             </label>
             <button onClick={() => setShowJson(!showJson)} className="p-2 bg-blue-500 text-white rounded">
-              <Code size={20} />
+              <Brackets size={20} />
             </button>
             <button onClick={() => setShowResizeInputs(!showResizeInputs)} className="p-2 bg-blue-500 text-white rounded">
               <Maximize2 size={20} />
@@ -371,206 +496,260 @@ const CanvasEditor = () => {
         )}
       </div>
       <div className="flex flex-1 overflow-hidden">
-        {showJson && (
-          <div className="w-96 bg-gray-800 p-4 overflow-y-auto">
-            <h2 className="text-lg font-semibold mb-4 text-white">JSON Editor</h2>
-            <div className="bg-gray-900 rounded-lg p-4 shadow-inner">
-              <div
-                ref={jsonEditorRef}
-                contentEditable={true}
-                onInput={handleJsonChange}
-                suppressContentEditableWarning={true}
-                className="text-sm text-white overflow-auto outline-none font-mono whitespace-pre-wrap"
-                style={{ maxHeight: 'calc(100vh - 200px)' }}
-                dangerouslySetInnerHTML={{
-                  __html: SyntaxHighlighter({
-                    language: 'json',
-                    style: customStyle,
-                    children: jsonContent,
-                    wrapLines: true,
-                    wrapLongLines: true,
-                    customStyle: {
-                      backgroundColor: 'transparent',
-                      padding: 0,
-                    },
-                  }).props.children,
+        {/* Left Sidebar */}
+        <LeftSidebar
+          elements={elements}
+          selectedElement={selectedElement}
+          setSelectedElement={setSelectedElement}
+          updateElement={updateElement}
+          copyElement={copyElement}
+          pasteElement={pasteElement}
+          deleteElement={deleteElement}
+        />
+        
+        {/* Main content area */}
+        <div className="flex flex-1 overflow-hidden">
+          {showJson && (
+            <div className="w-96 bg-white p-4 overflow-y-auto border-r border-gray-300">
+              <JSONEditor
+                id="json-editor"
+                placeholder={elements}
+                theme={customJsonEditorTheme}
+                locale={locale}
+                height="100%"
+                width="100%"
+                colors={{
+                  default: '#333',
+                  background: 'white',
+                  string: '#C41A16',
+                  number: '#1A01CC',
+                  colon: '#333',
+                  keys: '#881391',
+                  keys_whiteSpace: '#333',
+                  primitive: '#1A01CC',
                 }}
+                style={{
+                  body: {
+                    fontSize: '14px',
+                    fontFamily: 'monospace',
+                  },
+                }}
+                onBlur={(value) => {
+                  if (value.jsObject) {
+                    updateCanvasFromJson(JSON.stringify(value.jsObject));
+                  }
+                }}
+                renderContent={highlightSelectedElementInJson}
               />
             </div>
+          )}
+          <div className="flex-1 bg-gray-200 p-4 overflow-auto flex items-center justify-center">
+            <div className="bg-white shadow-lg">
+              <Stage
+                width={stageSize.width}
+                height={stageSize.height}
+                ref={stageRef}
+                onMouseDown={e => {
+                  if (e.target === e.target.getStage()) {
+                    setSelectedElement(null);
+                  }
+                }}
+              >
+                <Layer>
+                  {elements.map((el) => {
+                    const ElementComponent = el.type === 'text' ? Text : el.type === 'image' ? ImageElement : Rect;
+                    return (
+                      <ElementComponent
+                        key={el.id}
+                        {...el}
+                        draggable
+                        onClick={() => setSelectedElement(el)}
+                        onDragEnd={(e) => handleDragEnd(e, el.id)}
+                        onTransformEnd={(e) => handleTransformEnd(e, el.id)}
+                        stroke={selectedElement && selectedElement.id === el.id ? 'blue' : undefined}
+                        strokeWidth={selectedElement && selectedElement.id === el.id ? 2 : undefined}
+                      />
+                    );
+                  })}
+                  {selectedElement && (
+                    <Transformer
+                      ref={transformerRef}
+                      boundBoxFunc={(oldBox, newBox) => {
+                        if (newBox.width < 5 || newBox.height < 5) {
+                          return oldBox;
+                        }
+                        return newBox;
+                      }}
+                    />
+                  )}
+                </Layer>
+              </Stage>
+            </div>
           </div>
-        )}
-        <div className="flex-1 bg-gray-200 p-4 overflow-auto flex items-center justify-center">
-          <div className="bg-white shadow-lg">
-            <Stage
-              width={stageSize.width}
-              height={stageSize.height}
-              ref={stageRef}
-              onMouseDown={e => {
-                if (e.target === e.target.getStage()) {
-                  setSelectedElement(null);
-                }
-              }}
-            >
-              <Layer>
-                {elements.map((el) => {
-                  const ElementComponent = el.type === 'text' ? Text : el.type === 'image' ? ImageElement : Rect;
-                  return (
-                    <ElementComponent
-                      key={el.id}
-                      id={el.id}
-                      {...el}
-                      draggable
-                      onClick={() => handleElementClick(el)}
-                      onDragEnd={(e) => handleDragEnd(e, el.id)}
-                      onTransformEnd={(e) => handleTransformEnd(e, el.id)}
-                    />
-                  );
-                })}
-                {selectedElement && (
-                  <Transformer
-                    ref={transformerRef}
-                    boundBoxFunc={(oldBox, newBox) => {
-                      if (newBox.width < 5 || newBox.height < 5) {
-                        return oldBox;
-                      }
-                      return newBox;
-                    }}
-                  />
-                )}
-              </Layer>
-            </Stage>
-          </div>
-        </div>
-        <div className="w-64 bg-gray-100 p-4 overflow-y-auto">
-          <h2 className="text-lg font-semibold mb-4">Properties</h2>
-          {selectedElement && (
-            <div className="space-y-2">
-              <label className="block">
-                X:
-                <input
-                  type="number"
-                  value={selectedElement.x}
-                  onChange={(e) => updateElement(selectedElement.id, { x: Number(e.target.value) })}
-                  className="w-full p-1 border rounded"
-                />
-              </label>
-              <label className="block">
-                Y:
-                <input
-                  type="number"
-                  value={selectedElement.y}
-                  onChange={(e) => updateElement(selectedElement.id, { y: Number(e.target.value) })}
-                  className="w-full p-1 border rounded"
-                />
-              </label>
-              <label className="block">
-                Width:
-                <input
-                  type="number"
-                  value={selectedElement.width}
-                  onChange={(e) => updateElement(selectedElement.id, { width: Number(e.target.value) })}
-                  className="w-full p-1 border rounded"
-                />
-              </label>
-              <label className="block">
-                Height:
-                <input
-                  type="number"
-                  value={selectedElement.height}
-                  onChange={(e) => updateElement(selectedElement.id, { height: Number(e.target.value) })}
-                  className="w-full p-1 border rounded"
-                />
-              </label>
-              <label className="block">
-                Rotation:
-                <input
-                  type="number"
-                  value={selectedElement.rotation}
-                  onChange={(e) => updateElement(selectedElement.id, { rotation: Number(e.target.value) })}
-                  className="w-full p-1 border rounded"
-                />
-              </label>
-              {selectedElement.type === 'text' && (
-                <>
-                  <label className="block">
-                    Text:
-                    <input
-                      type="text"
-                      value={selectedElement.text}
-                      onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })}
-                      className="w-full p-1 border rounded"
-                    />
-                  </label>
-                  <label className="block">
-                    Font Size:
-                    <input
-                      type="number"
-                      value={selectedElement.fontSize}
-                      onChange={(e) => updateElement(selectedElement.id, { fontSize: Number(e.target.value) })}
-                      className="w-full p-1 border rounded"
-                    />
-                  </label>
-                  <label className="block">
-                    Font Family:
-                    <select
-                      value={selectedElement.fontFamily}
-                      onChange={(e) => updateElement(selectedElement.id, { fontFamily: e.target.value })}
-                      className="w-full p-1 border rounded"
-                    >
-                      <option value="Arial">Arial</option>
-                      <option value="Helvetica">Helvetica</option>
-                      <option value="Times New Roman">Times New Roman</option>
-                      <option value="Courier New">Courier New</option>
-                    </select>
-                  </label>
-                </>
-              )}
-              {(selectedElement.type === 'shape' || selectedElement.type === 'text') && (
+          {/* Right sidebar for properties */}
+          <div className="w-64 bg-gray-100 p-4 overflow-y-auto">
+            <h2 className="text-lg font-semibold mb-4">Properties</h2>
+            {selectedElement && (
+              <div className="space-y-2">
                 <label className="block">
-                  Fill:
+                  X:
                   <input
-                    type="color"
-                    value={selectedElement.fill}
-                    onChange={(e) => updateElement(selectedElement.id, { fill: e.target.value })}
+                    type="number"
+                    value={selectedElement.x}
+                    onChange={(e) => updateElement(selectedElement.id, { x: Number(e.target.value) })}
                     className="w-full p-1 border rounded"
                   />
                 </label>
-              )}
-              <label className="block">
-                Start Time:
-                <input
-                  type="number"
-                  value={selectedElement.startTime}
-                  onChange={(e) => updateElement(selectedElement.id, { startTime: Number(e.target.value) })}
-                  className="w-full p-1 border rounded"
-                />
-              </label>
-              <label className="block">
-                Duration:
-                <input
-                  type="number"
-                  value={selectedElement.duration}
-                  onChange={(e) => updateElement(selectedElement.id, { duration: Number(e.target.value) })}
-                  className="w-full p-1 border rounded"
-                />
-              </label>
-            </div>
-          )}
+                <label className="block">
+                  Y:
+                  <input
+                    type="number"
+                    value={selectedElement.y}
+                    onChange={(e) => updateElement(selectedElement.id, { y: Number(e.target.value) })}
+                    className="w-full p-1 border rounded"
+                  />
+                </label>
+                <label className="block">
+                  Width:
+                  <input
+                    type="number"
+                    value={selectedElement.width}
+                    onChange={(e) => updateElement(selectedElement.id, { width: Number(e.target.value) })}
+                    className="w-full p-1 border rounded"
+                  />
+                </label>
+                <label className="block">
+                  Height:
+                  <input
+                    type="number"
+                    value={selectedElement.height}
+                    onChange={(e) => updateElement(selectedElement.id, { height: Number(e.target.value) })}
+                    className="w-full p-1 border rounded"
+                  />
+                </label>
+                <label className="block">
+                  Rotation:
+                  <input
+                    type="number"
+                    value={selectedElement.rotation}
+                    onChange={(e) => updateElement(selectedElement.id, { rotation: Number(e.target.value) })}
+                    className="w-full p-1 border rounded"
+                  />
+                </label>
+                {selectedElement.type === 'text' && (
+                  <>
+                    <label className="block">
+                      Text:
+                      <input
+                        type="text"
+                        value={selectedElement.text}
+                        onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })}
+                        className="w-full p-1 border rounded"
+                      />
+                    </label>
+                    <label className="block">
+                      Font Size:
+                      <input
+                        type="number"
+                        value={selectedElement.fontSize}
+                        onChange={(e) => updateElement(selectedElement.id, { fontSize: Number(e.target.value) })}
+                        className="w-full p-1 border rounded"
+                      />
+                    </label>
+                    <label className="block">
+                      Font Family:
+                      <select
+                        value={selectedElement.fontFamily}
+                        onChange={(e) => updateElement(selectedElement.id, { fontFamily: e.target.value })}
+                        className="w-full p-1 border rounded"
+                      >
+                        <option value="Arial">Arial</option>
+                        <option value="Helvetica">Helvetica</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                        <option value="Courier New">Courier New</option>
+                      </select>
+                    </label>
+                  </>
+                )}
+                {(selectedElement.type === 'shape' || selectedElement.type === 'text') && (
+                  <label className="block">
+                    Fill:
+                    <input
+                      type="color"
+                      value={selectedElement.fill}
+                      onChange={(e) => updateElement(selectedElement.id, { fill: e.target.value })}
+                      className="w-full p-1 border rounded"
+                    />
+                  </label>
+                )}
+                <label className="block">
+                  Start Time:
+                  <input
+                    type="number"
+                    value={selectedElement.startTime}
+                    onChange={(e) => updateElement(selectedElement.id, { startTime: Number(e.target.value) })}
+                    className="w-full p-1 border rounded"
+                  />
+                </label>
+                <label className="block">
+                  Duration:
+                  <input
+                    type="number"
+                    value={selectedElement.duration}
+                    onChange={(e) => updateElement(selectedElement.id, { duration: Number(e.target.value) })}
+                    className="w-full p-1 border rounded"
+                  />
+                </label>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-      <div className="h-32 bg-gray-300 p-4">
+      <div className="h-48 bg-gray-300 p-4">
         <h2 className="text-lg font-semibold mb-2">Timeline</h2>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 mb-2">
+          <button
+            onClick={isPlaying ? pauseAnimation : playAnimation}
+            className="p-2 bg-blue-500 text-white rounded"
+          >
+            {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="10"
+            step="0.01"
+            value={currentTime}
+            onChange={(e) => setCurrentTime(parseFloat(e.target.value))}
+            className="flex-1"
+          />
+          <span>{currentTime.toFixed(2)}s</span>
+        </div>
+        <div className="flex items-stretch space-x-2 h-24">
           {elements.map((el) => (
             <div
               key={el.id}
-              className="bg-blue-200 p-2 rounded"
+              className={`bg-blue-200 p-2 rounded flex-1 relative cursor-pointer ${
+                selectedElement && selectedElement.id === el.id ? 'border-2 border-blue-500' : ''
+              }`}
               style={{
                 width: `${(el.duration / 10) * 100}%`,
                 marginLeft: `${(el.startTime / 10) * 100}%`,
               }}
+              onClick={() => setSelectedElement(el)}
             >
-              {el.type}
+              <div className="text-xs font-semibold mb-1">{el.name || el.type}</div>
+              {Object.entries(el.keyframes || {}).map(([time, props]) => (
+                <div
+                  key={time}
+                  className="absolute w-2 h-2 bg-red-500 rounded-full cursor-pointer"
+                  style={{ left: `${(parseFloat(time) / 10) * 100}%`, top: '50%' }}
+                  onClick={() => {
+                    setSelectedElement(el);
+                    setCurrentTime(parseFloat(time));
+                  }}
+                />
+              ))}
             </div>
           ))}
         </div>
