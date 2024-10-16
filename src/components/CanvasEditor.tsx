@@ -3,6 +3,8 @@ import { Stage, Layer, Rect, Text, Image, Transformer } from 'react-konva';
 import { Image as ImageIcon, Type, Square, Undo, Redo, Save, Upload, Code, Maximize2, Check, X } from 'lucide-react';
 import useImage from 'use-image';
 import { AdSizes } from '../utils/adSizes';
+import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 
 const CanvasEditor = () => {
   const [elements, setElements] = useState([]);
@@ -21,6 +23,16 @@ const CanvasEditor = () => {
   const stageRef = useRef(null);
   const transformerRef = useRef(null);
   const jsonEditorRef = useRef(null);
+  const [cursorPosition, setCursorPosition] = useState(0);
+
+  const customStyle = {
+    ...tomorrow,
+    'hljs-string': { color: '#ce9178' },
+    'hljs-number': { color: '#b5cea8' },
+    'hljs-boolean': { color: '#569cd6' },
+    'hljs-null': { color: '#569cd6' },
+    'hljs-attr': { color: '#9cdcfe' },
+  };
 
   useEffect(() => {
     const checkDeselect = (e) => {
@@ -172,15 +184,47 @@ const CanvasEditor = () => {
       addToHistory(newElements);
     } catch (error) {
       console.error('Invalid JSON:', error);
-      // Don't update the canvas if the JSON is invalid
     }
   };
 
-  const handleJsonChange = () => {
-    const newContent = jsonEditorRef.current.innerText;
+  const handleJsonChange = (e) => {
+    const newContent = e.currentTarget.innerText;
     setJsonContent(newContent);
-    updateCanvasFromJson(newContent);
+
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      setCursorPosition(range.startOffset);
+    }
+
+    setTimeout(() => {
+      updateCanvasFromJson(newContent);
+    }, 0);
   };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault(); // Prevents new line on Enter
+      
+      // Insert a newline character at the cursor position
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const newLineNode = document.createTextNode('\n');
+        range.insertNode(newLineNode);
+        range.setStartAfter(newLineNode);
+        range.setEndAfter(newLineNode);
+      if (range) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+        // Update the cursor position
+        setCursorPosition(range.startOffset);
+      }
+      // Trigger the change event manually
+      handleJsonChange({ currentTarget: jsonEditorRef.current });
+    }
+  }
+};
 
   const formatJson = (json) => {
     try {
@@ -225,6 +269,21 @@ const CanvasEditor = () => {
     const [image] = useImage(src);
     return <Image image={image} {...props} />;
   };
+
+  useEffect(() => {
+    if (jsonEditorRef.current) {
+      const editor = jsonEditorRef.current;
+      const selection = window.getSelection();
+      const range = document.createRange();
+
+      if (editor.childNodes.length > 0) {
+        range.setStart(editor.childNodes[0], cursorPosition);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+  }, [jsonContent, cursorPosition]);
 
   return (
     <div className="flex flex-col h-screen">
@@ -323,7 +382,19 @@ const CanvasEditor = () => {
                 suppressContentEditableWarning={true}
                 className="text-sm text-white overflow-auto outline-none font-mono whitespace-pre-wrap"
                 style={{ maxHeight: 'calc(100vh - 200px)' }}
-                dangerouslySetInnerHTML={{ __html: formatJson(jsonContent) }}
+                dangerouslySetInnerHTML={{
+                  __html: SyntaxHighlighter({
+                    language: 'json',
+                    style: customStyle,
+                    children: jsonContent,
+                    wrapLines: true,
+                    wrapLongLines: true,
+                    customStyle: {
+                      backgroundColor: 'transparent',
+                      padding: 0,
+                    },
+                  }).props.children,
+                }}
               />
             </div>
           </div>
