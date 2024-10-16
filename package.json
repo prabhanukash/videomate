@@ -10,10 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "codemirror": "^5.65.18",
     "konva": "^9.3.6",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
+    "react-codemirror2": "^8.0.0",
     "react-dom": "^18.2.0",
+    "react-dropzone": "^14.2.9",
+    "react-json-editor-ajrm": "^2.5.14",
     "react-json-view": "^1.21.3",
     "react-konva": "^18.2.10",
     "react-router-dom": "^6.22.3",
