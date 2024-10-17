@@ -4,7 +4,7 @@ import Header from './components/Header';
 import Hero from './components/Hero';
 import Features from './components/Features';
 import Footer from './components/Footer';
-import CanvasEditor from './components/CanvasEditor';
+import CanvasEditor from './components/Designer/CanvasEditor';
 
 function App() {
   return (

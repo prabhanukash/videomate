@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Image as ImageIcon, Type, Square, Edit2, Copy, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, Type, Square, Edit2, Copy, Trash2, Video, Edit2Icon, Edit3, Edit3Icon } from 'lucide-react';
 
 // Updated LeftSidebar component
-const LeftSidebar = ({ elements, selectedElement, setSelectedElement, updateElement, copyElement, pasteElement, deleteElement }) => {
+const LeftSidebar = ({ elements, selectedElement, setSelectedElement, updateElement, duplicateElement, deleteElement }) => {
     const [editingName, setEditingName] = useState(null);
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, elementId: null });
   
@@ -18,11 +18,8 @@ const LeftSidebar = ({ elements, selectedElement, setSelectedElement, updateElem
   
     const handleContextMenuAction = (action) => {
       switch (action) {
-        case 'copy':
-          copyElement(contextMenu.elementId);
-          break;
-        case 'paste':
-          pasteElement();
+        case 'duplicate':
+          duplicateElement(contextMenu.elementId);
           break;
         case 'rename':
           setEditingName(contextMenu.elementId);
@@ -42,20 +39,21 @@ const LeftSidebar = ({ elements, selectedElement, setSelectedElement, updateElem
   
     return (
       <div className="w-64 bg-white border-r border-gray-200 p-4 overflow-y-auto">
-        <h2 className="text-lg font-semibold mb-4">Elements</h2>
+        {/* <h2 className="text-lg font-semibold mb-4">Elements</h2> */}
         <div className="space-y-2">
           {elements.map((el) => (
             <div
               key={el.id}
               className={`flex items-center justify-between p-2 rounded cursor-pointer ${
-                selectedElement && selectedElement.id === el.id ? 'bg-blue-100' : 'hover:bg-gray-100'
+                selectedElement && selectedElement.id === el.id ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'
               }`}
               onClick={() => setSelectedElement(el)}
               onContextMenu={(e) => handleContextMenu(e, el.id)}
             >
-              {el.type === 'text' && <Type size={20} className="mr-2" />}
-              {el.type === 'shape' && <Square size={20} className="mr-2" />}
-              {el.type === 'image' && <ImageIcon size={20} className="mr-2" />}
+              {el.type === 'text' && <Type size={15} className="mr-2" />}
+              {el.type === 'shape' && <Square size={15} className="mr-2" />}
+              {el.type === 'image' && <ImageIcon size={15} className="mr-2" />}
+              {el.type === 'video' && <Video size={15} className="mr-2" />}
               {editingName === el.id ? (
                 <input
                   type="text"
@@ -80,7 +78,8 @@ const LeftSidebar = ({ elements, selectedElement, setSelectedElement, updateElem
                 }}
                 className="p-1 text-gray-500 hover:text-blue-500"
               >
-                <Edit2 size={16} />
+                {/* when selected need to change white color icon */}
+                <Edit3Icon size={15} className={`${selectedElement && selectedElement.id === el.id ? 'text-white' : 'text-gray-500'}`} />
               </button>
             </div>
           ))}
@@ -90,11 +89,8 @@ const LeftSidebar = ({ elements, selectedElement, setSelectedElement, updateElem
             className="absolute bg-white border border-gray-200 shadow-md rounded-md py-2"
             style={{ top: contextMenu.y, left: contextMenu.x }}
           >
-            <button className="w-full text-left px-4 py-2 hover:bg-gray-100" onClick={() => handleContextMenuAction('copy')}>
-              <Copy size={16} className="inline mr-2" /> Copy
-            </button>
-            <button className="w-full text-left px-4 py-2 hover:bg-gray-100" onClick={() => handleContextMenuAction('paste')}>
-              <Copy size={16} className="inline mr-2" /> Paste
+            <button className="w-full text-left px-4 py-2 hover:bg-gray-100" onClick={() => handleContextMenuAction('duplicate')}>
+              <Copy size={16} className="inline mr-2" /> Duplicate
             </button>
             <button className="w-full text-left px-4 py-2 hover:bg-gray-100" onClick={() => handleContextMenuAction('rename')}>
               <Edit2 size={16} className="inline mr-2" /> Rename

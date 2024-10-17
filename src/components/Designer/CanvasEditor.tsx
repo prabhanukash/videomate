@@ -1,15 +1,14 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Stage, Layer, Rect, Text, Image, Transformer } from 'react-konva';
-import { Image as ImageIcon, Type, Square, Undo, Redo, Upload, Maximize2, Check, X, Play, Pause, LucideTimerReset, Braces, LucideFileJson, ArrowLeft, Trash2, Rewind, Video } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Image } from 'react-konva';
+import { Check, X, ArrowLeft, Trash2 } from 'lucide-react';
 import useImage from 'use-image';
-import { AdSizes } from '../utils/adSizes';
-import JSONEditor from 'react-json-editor-ajrm';
-import locale from 'react-json-editor-ajrm/locale/en';
-import LeftSidebar from './CanvasStage/LeftSidebar';
-import { useElementManagement } from '../hooks/useElementManagement';
-import { useAnimation } from '../hooks/useAnimation';
-import { useJsonEditor } from '../hooks/useJsonEditor';
-
+import { AdSizes } from '../../utils/adSizes';
+import LeftSidebar from './ElementsPanel';
+import Timeline from './Timeline';
+import PropertiesPanel from './PropertiesPanel';
+import JsonEditorPanel from './JsonEditorPanel';
+import Canvas from './Canvas';
+import Toolbar from './Toolbar';
 const MAX_AUTO_VERSIONS = 50;
 const AUTO_SAVE_INTERVAL = 5000; // 5 seconds
 
@@ -38,6 +37,8 @@ const CanvasEditor = () => {
   const [versions, setVersions] = useState([]);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState(null);
+  const toggleJson = () => setShowJson(!showJson);
+  const toggleResizeInputs = () => setShowResizeInputs(!showResizeInputs);
 
   useEffect(() => {
     const checkDeselect = (e) => {
@@ -560,45 +561,20 @@ const CanvasEditor = () => {
               </h1>
             )}
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => addElement('text')} className="p-2 bg-blue-500 text-white rounded">
-              <Type size={20} />
-            </button>
-            <button onClick={() => addElement('shape')} className="p-2 bg-blue-500 text-white rounded">
-              <Square size={20} />
-            </button>
-            <label className="p-2 bg-blue-500 text-white rounded cursor-pointer">
-              <ImageIcon size={20} />
-              <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*" />
-            </label>
-            <label className="p-2 bg-blue-500 text-white rounded cursor-pointer">
-              <Video size={20} />
-              <input type="file" className="hidden" onChange={handleVideoUpload} accept="video/*" />
-            </label>
-            <button onClick={undo} className="p-2 bg-blue-500 text-white rounded" disabled={historyIndex <= 0}>
-              <Undo size={20} />
-            </button>
-            <button onClick={redo} className="p-2 bg-blue-500 text-white rounded" disabled={historyIndex >= history.length - 1}>
-              <Redo size={20} />
-            </button>
-            <button onClick={saveTemplate} className="p-2 bg-blue-500 text-white rounded">
-              {/* export to json */}
-              <LucideFileJson size={20} />
-            </button>
-            <label className="p-2 bg-blue-500 text-white rounded cursor-pointer">
-              <Upload size={20} />
-              <input type="file" className="hidden" onChange={loadTemplate} accept=".json" />
-            </label>
-            <button onClick={() => setShowJson(!showJson)} className="p-2 bg-blue-500 text-white rounded">
-              <Braces size={20} />
-            </button>
-            <button onClick={() => setShowResizeInputs(!showResizeInputs)} className="p-2 bg-blue-500 text-white rounded">
-              <Maximize2 size={20} />
-            </button>
-            <button onClick={() => setShowVersionHistory(true)} className="p-2 bg-blue-500 text-white rounded">
-              <LucideTimerReset size={20} />
-            </button>
-          </div>
+          <Toolbar
+            addElement={addElement}
+            undo={undo}
+            redo={redo}
+            historyIndex={historyIndex}
+            historyLength={history.length}
+            saveTemplate={saveTemplate}
+            loadTemplate={loadTemplate}
+            toggleJson={toggleJson}
+            toggleResizeInputs={toggleResizeInputs}
+            showVersionHistory={() => setShowVersionHistory(true)}
+            handleImageUpload={handleImageUpload}
+            handleVideoUpload={handleVideoUpload}
+          />
         </div>
         {showResizeInputs && (
           <div className="flex justify-end gap-2 mb-4">
@@ -636,290 +612,40 @@ const CanvasEditor = () => {
         {/* Main content area */}
         <div className="flex flex-1 overflow-hidden">
           {showJson && (
-            <div className="w-96 bg-white p-4 overflow-y-auto border-r border-gray-300">
-              <JSONEditor
-                id="json-editor"
-                placeholder={elements}
-                theme={customJsonEditorTheme}
-                locale={locale}
-                height="100%"
-                width="100%"
-                colors={{
-                  default: '#333',
-                  background: 'white',
-                  string: '#C41A16',
-                  number: '#1A01CC',
-                  colon: '#333',
-                  keys: '#881391',
-                  keys_whiteSpace: '#333',
-                  primitive: '#1A01CC',
-                }}
-                style={{
-                  body: {
-                    fontSize: '14px',
-                    fontFamily: 'monospace',
-                  },
-                }}
-                onBlur={(value) => {
-                  if (value.jsObject) {
-                    updateCanvasFromJson(JSON.stringify(value.jsObject));
-                  }
-                }}
-                renderContent={highlightSelectedElementInJson}
-              />
-            </div>
+            <JsonEditorPanel
+              elements={elements}
+              updateCanvasFromJson={updateCanvasFromJson}
+              highlightSelectedElementInJson={highlightSelectedElementInJson}
+              customJsonEditorTheme={customJsonEditorTheme}
+            />
           )}
-          <div className="flex-1 bg-gray-200 p-4 overflow-auto flex items-center justify-center">
-            <div className="bg-white shadow-lg">
-              <Stage
-                width={stageSize.width}
-                height={stageSize.height}
-                ref={stageRef}
-                onMouseDown={e => {
-                  if (e.target === e.target.getStage()) {
-                    setSelectedElement(null);
-                  }
-                }}
-              >
-                <Layer>
-                  {elements.map((el) => {
-                    const ElementComponent = el.type === 'text' ? Text : el.type === 'image' ? ImageElement : Rect;
-                    return (
-                      <ElementComponent
-                        key={el.id}
-                        {...el}
-                        draggable
-                        onClick={() => setSelectedElement(el)}
-                        onDragEnd={(e) => handleDragEnd(e, el.id)}
-                        onTransformEnd={(e) => handleTransformEnd(e, el.id)}
-                        stroke={selectedElement && selectedElement.id === el.id ? 'blue' : undefined}
-                        strokeWidth={selectedElement && selectedElement.id === el.id ? 2 : undefined}
-                      />
-                    );
-                  })}
-                  {selectedElement && (
-                    <Transformer
-                      ref={transformerRef}
-                      boundBoxFunc={(oldBox, newBox) => {
-                        if (newBox.width < 5 || newBox.height < 5) {
-                          return oldBox;
-                        }
-                        return newBox;
-                      }}
-                    />
-                  )}
-                </Layer>
-              </Stage>
-            </div>
-          </div>
-          {/* Right sidebar for properties */}
-          <div className="w-64 bg-gray-100 p-4 overflow-y-auto">
-            <h2 className="text-lg font-semibold mb-4">Properties</h2>
-            {selectedElement && (
-              <div className="space-y-2">
-                <label className="block">
-                  X:
-                  <input
-                    type="number"
-                    value={selectedElement.x}
-                    onChange={(e) => updateElement(selectedElement.id, { x: Number(e.target.value) })}
-                    className="w-full p-1 border rounded"
-                  />
-                </label>
-                <label className="block">
-                  Y:
-                  <input
-                    type="number"
-                    value={selectedElement.y}
-                    onChange={(e) => updateElement(selectedElement.id, { y: Number(e.target.value) })}
-                    className="w-full p-1 border rounded"
-                  />
-                </label>
-                <label className="block">
-                  Width:
-                  <input
-                    type="number"
-                    value={selectedElement.width}
-                    onChange={(e) => updateElement(selectedElement.id, { width: Number(e.target.value) })}
-                    className="w-full p-1 border rounded"
-                  />
-                </label>
-                <label className="block">
-                  Height:
-                  <input
-                    type="number"
-                    value={selectedElement.height}
-                    onChange={(e) => updateElement(selectedElement.id, { height: Number(e.target.value) })}
-                    className="w-full p-1 border rounded"
-                  />
-                </label>
-                <label className="block">
-                  Rotation:
-                  <input
-                    type="number"
-                    value={selectedElement.rotation}
-                    onChange={(e) => updateElement(selectedElement.id, { rotation: Number(e.target.value) })}
-                    className="w-full p-1 border rounded"
-                  />
-                </label>
-                {selectedElement.type === 'text' && (
-                  <>
-                    <label className="block">
-                      Text:
-                      <input
-                        type="text"
-                        value={selectedElement.text}
-                        onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })}
-                        className="w-full p-1 border rounded"
-                      />
-                    </label>
-                    <label className="block">
-                      Font Size:
-                      <input
-                        type="number"
-                        value={selectedElement.fontSize}
-                        onChange={(e) => updateElement(selectedElement.id, { fontSize: Number(e.target.value) })}
-                        className="w-full p-1 border rounded"
-                      />
-                    </label>
-                    <label className="block">
-                      Font Family:
-                      <select
-                        value={selectedElement.fontFamily}
-                        onChange={(e) => updateElement(selectedElement.id, { fontFamily: e.target.value })}
-                        className="w-full p-1 border rounded"
-                      >
-                        <option value="Arial">Arial</option>
-                        <option value="Helvetica">Helvetica</option>
-                        <option value="Times New Roman">Times New Roman</option>
-                        <option value="Courier New">Courier New</option>
-                      </select>
-                    </label>
-                  </>
-                )}
-                {(selectedElement.type === 'shape' || selectedElement.type === 'text') && (
-                  <label className="block">
-                    Fill:
-                    <input
-                      type="color"
-                      value={selectedElement.fill}
-                      onChange={(e) => updateElement(selectedElement.id, { fill: e.target.value })}
-                      className="w-full p-1 border rounded"
-                    />
-                  </label>
-                )}
-                <label className="block">
-                  Start Time:
-                  <input
-                    type="number"
-                    value={selectedElement.startTime}
-                    onChange={(e) => updateElement(selectedElement.id, { startTime: Number(e.target.value) })}
-                    className="w-full p-1 border rounded"
-                  />
-                </label>
-                <label className="block">
-                  Duration:
-                  <input
-                    type="number"
-                    value={selectedElement.duration}
-                    onChange={(e) => updateElement(selectedElement.id, { duration: Number(e.target.value) })}
-                    className="w-full p-1 border rounded"
-                  />
-                </label>
-              </div>
-            )}
-          </div>
+          <Canvas
+            stageSize={stageSize}
+            stageRef={stageRef}
+            elements={elements}
+            selectedElement={selectedElement}
+            setSelectedElement={setSelectedElement}
+            handleDragEnd={handleDragEnd}
+            handleTransformEnd={handleTransformEnd}
+            transformerRef={transformerRef}
+            ImageElement={ImageElement}
+          />
+          <PropertiesPanel
+            selectedElement={selectedElement}
+            updateElement={updateElement}
+          />
         </div>
       </div>
-      <div className="h-64 bg-gray-100 p-4 overflow-hidden">
-        <div className="flex items-center space-x-2 mb-2">
-          <button
-            onClick={isPlaying ? pauseAnimation : playAnimation}
-            className="p-2 bg-blue-500 text-white rounded-full"
-          >
-            {isPlaying ? <Pause size={20} /> : <Play size={20} />}
-          </button>
-          <button
-            onClick={() => setCurrentTime(0)}
-            className="p-2 bg-blue-500 text-white rounded-full"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <button
-            onClick={() => setCurrentTime(Math.max(0, currentTime - 1))}
-            className="p-2 bg-blue-500 text-white rounded-full"
-          >
-            <Rewind size={20} />
-          </button>
-          <div className="bg-white rounded px-2 py-1 text-sm font-medium">
-            {currentTime.toFixed(2)}
-          </div>
-        </div>
-        <div className="relative h-40 bg-white">
-          <div className="absolute top-0 left-0 right-0 h-6 flex items-end px-8 border-b border-gray-200">
-            {[...Array(13)].map((_, i) => (
-              <span key={i} className="absolute text-xs text-gray-500" style={{ left: `${i * (100 / 12)}%` }}>
-                {i}s
-              </span>
-            ))}
-          </div>
-          <div className="absolute top-6 left-0 right-0 bottom-0 overflow-y-auto">
-            <div className="relative">
-              {sortElementsByZIndex(elements).reverse().map((el, index) => (
-                <div
-                  key={el.id}
-                  className="h-8 relative flex items-center hover:bg-gray-100"
-                >
-                  <div className="flex items-center w-100">
-                  <div className="absolute left-0 top-0 bottom-0 flex items-center justify-center">
-                    <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
-                  </div>
-                  <div className="absolute left-8 top-0 bottom-0 flex items-center">
-                    <span className="text-xs font-medium text-gray-600 truncate">
-                      Track {sortElementsByZIndex(elements).length - index}
-                    </span>
-                  </div>
-                  </div>
-                  <div
-                    className={`absolute h-6 rounded cursor-pointer ${
-                      selectedElement && selectedElement.id === el.id ? 'bg-blue-500' : 'bg-gray-700'
-                    }`}
-                    style={{
-                      left: `calc(40px + ${(el.startTime / 10) * 100}%)`,
-                      width: `${(el.duration / 10) * 100}%`,
-                    }}
-                    onClick={() => setSelectedElement(el)}
-                  >
-                    <div className={`h-full flex items-center justify-center text-xs font-medium truncate px-1 ${
-                      selectedElement && selectedElement.id === el.id ? 'text-white' : 'text-gray-300'
-                    }`}>
-                      {el.type.charAt(0).toUpperCase() + el.type.slice(1)}
-                    </div>
-                  </div>
-                  {Object.entries(el.keyframes || {}).map(([time, props]) => (
-                    <div
-                      key={time}
-                      className="absolute w-2 h-2 bg-red-500 rounded-full cursor-pointer"
-                      style={{ left: `calc(40px + ${(parseFloat(time) / 10) * 100}%)`, top: '50%', transform: 'translateY(-50%)' }}
-                      onClick={() => {
-                        setSelectedElement(el);
-                        setCurrentTime(parseFloat(time));
-                      }}
-                    />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-          {/* Red indicator at the top and vertical line */}
-          <div
-            className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none"
-            style={{ left: `calc(40px + ${(currentTime / 10) * 100}%)` }}
-          >
-            <div className="w-3 h-3 bg-red-500 rounded-full -mt-1.5 -ml-1" />
-          </div>
-        </div>
-      </div>
+      <Timeline 
+        elements={elements}
+        selectedElement={selectedElement}
+        currentTime={currentTime}
+        isPlaying={isPlaying}
+        setSelectedElement={setSelectedElement}
+        setCurrentTime={setCurrentTime}
+        playAnimation={playAnimation}
+        pauseAnimation={pauseAnimation}
+      />
       {showVersionHistory && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-4 rounded-lg w-3/4 h-3/4 flex flex-col">
