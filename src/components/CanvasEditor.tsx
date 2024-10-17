@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Stage, Layer, Rect, Text, Image, Transformer } from 'react-konva';
-import { Image as ImageIcon, Type, Square, Undo, Redo, Save, Upload, Maximize2, Check, X, Play, Pause, FileJson, LucideTimerReset, Braces, LucideFileJson, Clock, ArrowLeft, Trash2, Rewind } from 'lucide-react';
+import { Image as ImageIcon, Type, Square, Undo, Redo, Upload, Maximize2, Check, X, Play, Pause, LucideTimerReset, Braces, LucideFileJson, ArrowLeft, Trash2, Rewind, Video } from 'lucide-react';
 import useImage from 'use-image';
 import { AdSizes } from '../utils/adSizes';
 import JSONEditor from 'react-json-editor-ajrm';
@@ -76,7 +76,7 @@ const CanvasEditor = () => {
       width: 100,
       height: 100,
       text: type === 'text' ? 'New Text' : '',
-      fill: type === 'shape' ? 'rgba(255,255,255,0)' : 'black',
+      fill: type === 'shape' ? 'bg-blue' : 'black',
       fontSize: 20,
       fontFamily: 'Arial',
       rotation: 0,
@@ -187,6 +187,33 @@ const CanvasEditor = () => {
         addToHistory(newElements);
       };
       img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleVideoUpload = (e) => {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const video = document.createElement('video');
+      video.onloadedmetadata = () => {
+        const newElement = {
+          id: Date.now().toString(),
+          type: 'video',
+          x: 100,
+          y: 100,
+          width: 200,
+          height: 200,
+          video: event.target.result,
+          duration: 5,
+          startTime: 0,
+        };
+        const newElements = [...elements, newElement];
+        setElements(newElements);
+        addToHistory(newElements);
+      };
+      video.src = event.target.result;
+      video.load();
     };
     reader.readAsDataURL(file);
   };
@@ -500,6 +527,12 @@ const CanvasEditor = () => {
       <div className="bg-gray-100 p-4">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center">
+            <button onClick={() => {
+              setShowJson(false);
+              window.history.back();
+            }} className="p-1 text-gray-500 hover:text-gray-700">
+              <ArrowLeft size={20} />
+            </button>
             {isEditingName ? (
               <>
                 <input
@@ -518,6 +551,7 @@ const CanvasEditor = () => {
                 </button>
               </>
             ) : (
+              
               <h1 
                 onClick={handleNameClick} 
                 className="text-xl font-semibold cursor-pointer hover:text-blue-500"
@@ -536,6 +570,10 @@ const CanvasEditor = () => {
             <label className="p-2 bg-blue-500 text-white rounded cursor-pointer">
               <ImageIcon size={20} />
               <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*" />
+            </label>
+            <label className="p-2 bg-blue-500 text-white rounded cursor-pointer">
+              <Video size={20} />
+              <input type="file" className="hidden" onChange={handleVideoUpload} accept="video/*" />
             </label>
             <button onClick={undo} className="p-2 bg-blue-500 text-white rounded" disabled={historyIndex <= 0}>
               <Undo size={20} />
