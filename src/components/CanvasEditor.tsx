@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Stage, Layer, Rect, Text, Image, Transformer } from 'react-konva';
-import { Image as ImageIcon, Type, Square, Undo, Redo, Save, Upload, Brackets, Maximize2, Check, X, Play, Pause, Edit2, Copy, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, Type, Square, Undo, Redo, Save, Upload, Maximize2, Check, X, Play, Pause, FileJson, LucideTimerReset, Braces, LucideFileJson, Clock, ArrowLeft, Trash2, Rewind } from 'lucide-react';
 import useImage from 'use-image';
 import { AdSizes } from '../utils/adSizes';
 import JSONEditor from 'react-json-editor-ajrm';
@@ -10,6 +10,8 @@ import { useElementManagement } from '../hooks/useElementManagement';
 import { useAnimation } from '../hooks/useAnimation';
 import { useJsonEditor } from '../hooks/useJsonEditor';
 
+const MAX_AUTO_VERSIONS = 50;
+const AUTO_SAVE_INTERVAL = 5000; // 5 seconds
 
 const CanvasEditor = () => {
   const [elements, setElements] = useState([]);
@@ -33,6 +35,9 @@ const CanvasEditor = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const animationRef = useRef(null);
   const [clipboard, setClipboard] = useState(null);
+  const [versions, setVersions] = useState([]);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState(null);
 
   useEffect(() => {
     const checkDeselect = (e) => {
@@ -382,22 +387,19 @@ const CanvasEditor = () => {
     );
   };
 
-  const copyElement = (id) => {
-    const elementToCopy = elements.find(el => el.id === id);
-    setClipboard(elementToCopy);
-  };
-
-  const pasteElement = () => {
-    if (clipboard) {
+  const duplicateElement = (id) => {
+    const elementToDuplicate = elements.find(el => el.id === id);
+    if (elementToDuplicate) {
       const newElement = {
-        ...clipboard,
+        ...elementToDuplicate,
         id: Date.now().toString(),
-        name: `${clipboard.name} (Copy)`,
-        x: clipboard.x + 10,
-        y: clipboard.y + 10,
+        name: `${elementToDuplicate.name} (Copy)`,
+        x: elementToDuplicate.x + 10,
+        y: elementToDuplicate.y + 10,
       };
-      setElements([...elements, newElement]);
-      addToHistory([...elements, newElement]);
+      const newElements = [...elements, newElement];
+      setElements(newElements);
+      addToHistory(newElements);
     }
   };
 
@@ -408,6 +410,89 @@ const CanvasEditor = () => {
     if (selectedElement && selectedElement.id === id) {
       setSelectedElement(null);
     }
+  };
+
+  const saveVersion = useCallback((isAutoSave = true) => {
+    const isSame = JSON.stringify(elements) === JSON.stringify(versions[versions.length - 1]?.elements);
+    if (isSame) return;
+
+    const newVersion = {
+      id: Date.now(),
+      name: isAutoSave ? `Auto-save ${versions.length + 1}` : `Version ${versions.length + 1}`,
+      description: '',
+      elements: JSON.parse(JSON.stringify(elements)),
+      date: new Date().toLocaleString(),
+      isAutoSave,
+    };
+
+    setVersions(prevVersions => {
+      const updatedVersions = [...prevVersions, newVersion];
+      if (isAutoSave && updatedVersions.length > MAX_AUTO_VERSIONS) {
+        // Remove the oldest auto-save version
+        const oldestAutoSaveIndex = updatedVersions.findIndex(v => v.isAutoSave);
+        if (oldestAutoSaveIndex !== -1) {
+          updatedVersions.splice(oldestAutoSaveIndex, 1);
+        }
+      }
+      return updatedVersions;
+    });
+  }, [elements, versions]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      saveVersion(true);
+    }, AUTO_SAVE_INTERVAL);
+    return () => clearInterval(interval);
+  }, [saveVersion]);
+
+  const loadVersion = (version) => {
+    setElements(version.elements);
+    addToHistory(version.elements);
+    setShowVersionHistory(false);
+    setSelectedVersion(null);
+  };
+
+  const deleteVersion = (versionId) => {
+    setVersions(prevVersions => prevVersions.filter(v => v.id !== versionId));
+  };
+
+  const updateVersionName = (versionId, newName) => {
+    setVersions(prevVersions =>
+      prevVersions.map(v => v.id === versionId ? { ...v, name: newName } : v)
+    );
+  };
+
+  const updateVersionDescription = (versionId, newDescription) => {
+    setVersions(prevVersions =>
+      prevVersions.map(v => v.id === versionId ? { ...v, description: newDescription } : v)
+    );
+  };
+  const jsonDiff = (obj1, obj2) => {
+    const diff = {};
+    for (const key in obj1) {
+      if (obj1[key] !== obj2[key]) {
+        diff[key] = { from: obj1[key], to: obj2[key] };
+      }
+    }
+    return diff;
+  };
+  const compareVersions = (version1, version2) => {
+    // Implement version comparison logic here
+    // This could be a visual diff or a more detailed comparison
+    // need to show the diff between the two versions like git diff for the json
+    const diff = jsonDiff(version1.elements, version2.elements);
+
+    console.log('Comparing versions:', version1.id, version2.id);
+  };
+
+  // Add this new function to sort elements by their z-index or creation order
+  const sortElementsByZIndex = (elements) => {
+    return [...elements].sort((a, b) => {
+      if (a.zIndex !== undefined && b.zIndex !== undefined) {
+        return a.zIndex - b.zIndex;
+      }
+      return elements.indexOf(a) - elements.indexOf(b);
+    });
   };
 
   return (
@@ -459,17 +544,21 @@ const CanvasEditor = () => {
               <Redo size={20} />
             </button>
             <button onClick={saveTemplate} className="p-2 bg-blue-500 text-white rounded">
-              <Save size={20} />
+              {/* export to json */}
+              <LucideFileJson size={20} />
             </button>
             <label className="p-2 bg-blue-500 text-white rounded cursor-pointer">
               <Upload size={20} />
               <input type="file" className="hidden" onChange={loadTemplate} accept=".json" />
             </label>
             <button onClick={() => setShowJson(!showJson)} className="p-2 bg-blue-500 text-white rounded">
-              <Brackets size={20} />
+              <Braces size={20} />
             </button>
             <button onClick={() => setShowResizeInputs(!showResizeInputs)} className="p-2 bg-blue-500 text-white rounded">
               <Maximize2 size={20} />
+            </button>
+            <button onClick={() => setShowVersionHistory(true)} className="p-2 bg-blue-500 text-white rounded">
+              <LucideTimerReset size={20} />
             </button>
           </div>
         </div>
@@ -502,8 +591,7 @@ const CanvasEditor = () => {
           selectedElement={selectedElement}
           setSelectedElement={setSelectedElement}
           updateElement={updateElement}
-          copyElement={copyElement}
-          pasteElement={pasteElement}
+          duplicateElement={duplicateElement}
           deleteElement={deleteElement}
         />
         
@@ -705,55 +793,169 @@ const CanvasEditor = () => {
           </div>
         </div>
       </div>
-      <div className="h-48 bg-gray-300 p-4">
-        <h2 className="text-lg font-semibold mb-2">Timeline</h2>
+      <div className="h-64 bg-gray-100 p-4 overflow-hidden">
         <div className="flex items-center space-x-2 mb-2">
           <button
             onClick={isPlaying ? pauseAnimation : playAnimation}
-            className="p-2 bg-blue-500 text-white rounded"
+            className="p-2 bg-blue-500 text-white rounded-full"
           >
             {isPlaying ? <Pause size={20} /> : <Play size={20} />}
           </button>
-          <input
-            type="range"
-            min="0"
-            max="10"
-            step="0.01"
-            value={currentTime}
-            onChange={(e) => setCurrentTime(parseFloat(e.target.value))}
-            className="flex-1"
-          />
-          <span>{currentTime.toFixed(2)}s</span>
+          <button
+            onClick={() => setCurrentTime(0)}
+            className="p-2 bg-blue-500 text-white rounded-full"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <button
+            onClick={() => setCurrentTime(Math.max(0, currentTime - 1))}
+            className="p-2 bg-blue-500 text-white rounded-full"
+          >
+            <Rewind size={20} />
+          </button>
+          <div className="bg-white rounded px-2 py-1 text-sm font-medium">
+            {currentTime.toFixed(2)}
+          </div>
         </div>
-        <div className="flex items-stretch space-x-2 h-24">
-          {elements.map((el) => (
-            <div
-              key={el.id}
-              className={`bg-blue-200 p-2 rounded flex-1 relative cursor-pointer ${
-                selectedElement && selectedElement.id === el.id ? 'border-2 border-blue-500' : ''
-              }`}
-              style={{
-                width: `${(el.duration / 10) * 100}%`,
-                marginLeft: `${(el.startTime / 10) * 100}%`,
-              }}
-              onClick={() => setSelectedElement(el)}
-            >
-              <div className="text-xs font-semibold mb-1">{el.name || el.type}</div>
-              {Object.entries(el.keyframes || {}).map(([time, props]) => (
+        <div className="relative h-40 bg-white">
+          <div className="absolute top-0 left-0 right-0 h-6 flex items-end px-8 border-b border-gray-200">
+            {[...Array(13)].map((_, i) => (
+              <span key={i} className="absolute text-xs text-gray-500" style={{ left: `${i * (100 / 12)}%` }}>
+                {i}s
+              </span>
+            ))}
+          </div>
+          <div className="absolute top-6 left-0 right-0 bottom-0 overflow-y-auto">
+            <div className="relative">
+              {sortElementsByZIndex(elements).reverse().map((el, index) => (
                 <div
-                  key={time}
-                  className="absolute w-2 h-2 bg-red-500 rounded-full cursor-pointer"
-                  style={{ left: `${(parseFloat(time) / 10) * 100}%`, top: '50%' }}
-                  onClick={() => {
-                    setSelectedElement(el);
-                    setCurrentTime(parseFloat(time));
-                  }}
-                />
+                  key={el.id}
+                  className="h-8 relative flex items-center hover:bg-gray-100"
+                >
+                  <div className="flex items-center w-100">
+                  <div className="absolute left-0 top-0 bottom-0 flex items-center justify-center">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                  </div>
+                  <div className="absolute left-8 top-0 bottom-0 flex items-center">
+                    <span className="text-xs font-medium text-gray-600 truncate">
+                      Track {sortElementsByZIndex(elements).length - index}
+                    </span>
+                  </div>
+                  </div>
+                  <div
+                    className={`absolute h-6 rounded cursor-pointer ${
+                      selectedElement && selectedElement.id === el.id ? 'bg-blue-500' : 'bg-gray-700'
+                    }`}
+                    style={{
+                      left: `calc(40px + ${(el.startTime / 10) * 100}%)`,
+                      width: `${(el.duration / 10) * 100}%`,
+                    }}
+                    onClick={() => setSelectedElement(el)}
+                  >
+                    <div className={`h-full flex items-center justify-center text-xs font-medium truncate px-1 ${
+                      selectedElement && selectedElement.id === el.id ? 'text-white' : 'text-gray-300'
+                    }`}>
+                      {el.type.charAt(0).toUpperCase() + el.type.slice(1)}
+                    </div>
+                  </div>
+                  {Object.entries(el.keyframes || {}).map(([time, props]) => (
+                    <div
+                      key={time}
+                      className="absolute w-2 h-2 bg-red-500 rounded-full cursor-pointer"
+                      style={{ left: `calc(40px + ${(parseFloat(time) / 10) * 100}%)`, top: '50%', transform: 'translateY(-50%)' }}
+                      onClick={() => {
+                        setSelectedElement(el);
+                        setCurrentTime(parseFloat(time));
+                      }}
+                    />
+                  ))}
+                </div>
               ))}
             </div>
-          ))}
+          </div>
+          {/* Red indicator at the top and vertical line */}
+          <div
+            className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none"
+            style={{ left: `calc(40px + ${(currentTime / 10) * 100}%)` }}
+          >
+            <div className="w-3 h-3 bg-red-500 rounded-full -mt-1.5 -ml-1" />
+          </div>
         </div>
       </div>
+      {showVersionHistory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-4 rounded-lg w-3/4 h-3/4 flex flex-col">
+            <h2 className="text-xl font-semibold mb-4">Version History</h2>
+            <div className="flex-1 overflow-auto">
+              <ul>
+                {versions
+                  .slice()
+                  .sort((a, b) => b.id - a.id)
+                  .map((version) => (
+                  <li key={version.id} className="mb-2 p-2 border rounded hover:bg-gray-100">
+                    <div className="flex justify-between items-center">
+                      <input
+                        value={version.name}
+                        onChange={(e) => updateVersionName(version.id, e.target.value)}
+                        className="font-semibold"
+                      />
+                      <span>{version.date}</span>
+                    </div>
+                    <textarea
+                      value={version.description}
+                      onChange={(e) => updateVersionDescription(version.id, e.target.value)}
+                      placeholder="Add a description..."
+                      className="w-full mt-2"
+                    />
+                    <div className="mt-2 flex justify-end space-x-2">
+                      <button
+                        onClick={() => loadVersion(version)}
+                        className="px-2 py-1 bg-blue-500 text-white rounded"
+                      >
+                        Load
+                      </button>
+                      <button
+                        onClick={() => setSelectedVersion(version)}
+                        className="px-2 py-1 bg-green-500 text-white rounded"
+                      >
+                        Compare
+                      </button>
+                      <button
+                        onClick={() => deleteVersion(version.id)}
+                        className="px-2 py-1 bg-red-500 text-white rounded"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {selectedVersion && (
+              <div className="mt-4 p-2 border rounded">
+                <h3 className="font-semibold">Comparing with: {selectedVersion.name}</h3>
+                <button
+                  onClick={() => compareVersions(versions[versions.length - 1], selectedVersion)}
+                  className="mt-2 px-2 py-1 bg-blue-500 text-white rounded"
+                >
+                  Show Differences
+                </button>
+              </div>
+            )}
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowVersionHistory(false);
+                  setSelectedVersion(null);
+                }}
+                className="px-4 py-2 bg-gray-300 text-gray-800 rounded"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
