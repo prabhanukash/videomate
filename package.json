@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@headlessui/react": "^2.1.10",
     "codemirror": "^5.65.18",
     "konva": "^9.3.6",
     "lucide-react": "^0.344.0",
