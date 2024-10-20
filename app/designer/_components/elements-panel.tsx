@@ -1,78 +1,146 @@
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-
-// Define a type for the element
-interface Element {
-  id: string;
-  type: string;
-  [key: string]: string | number; // For other properties that might vary based on element type
-}
+import React, { useState, useEffect } from 'react';
+import {
+  Image as ImageIcon,
+  Type,
+  Square,
+  Edit2,
+  Copy,
+  Trash2,
+  Video,
+  Edit3Icon
+} from 'lucide-react';
 
 interface ElementsPanelProps {
-  elements: Element[];
-  selectedElement: Element | null;
-  onElementSelect: (element: Element) => void;
-  onElementUpdate: (id: string, updates: Partial<Element>) => void;
+  elements: Array<{
+    id: string;
+    type: 'text' | 'image' | 'rect';
+    [key: string]: any;
+  }>;
+  selectedElement: { id: string } | null;
+  setSelectedElement: (element: { id: string } | null) => void;
+  updateElement: (id: string, data: any) => void;
+  duplicateElement: (id: string) => void;
+  deleteElement: (id: string) => void;
 }
 
-const ElementsPanel: React.FC<ElementsPanelProps> = ({
+// Updated LeftSidebar component
+const ElementsPanel = ({
   elements,
   selectedElement,
-  onElementSelect,
-  onElementUpdate
-}) => {
+  setSelectedElement,
+  updateElement,
+  duplicateElement,
+  deleteElement
+}: ElementsPanelProps) => {
+  const [editingName, setEditingName] = useState(null);
+  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, elementId: null });
+
+  const handleNameChange = (id, newName) => {
+    updateElement(id, { name: newName });
+    setEditingName(null);
+  };
+
+  const handleContextMenu = (e, elementId) => {
+    e.preventDefault();
+    setContextMenu({ visible: true, x: e.clientX, y: e.clientY, elementId });
+  };
+
+  const handleContextMenuAction = (action) => {
+    switch (action) {
+      case 'duplicate':
+        duplicateElement(contextMenu.elementId);
+        break;
+      case 'rename':
+        setEditingName(contextMenu.elementId);
+        break;
+      case 'delete':
+        deleteElement(contextMenu.elementId);
+        break;
+    }
+    setContextMenu({ visible: false, x: 0, y: 0, elementId: null });
+  };
+
+  useEffect(() => {
+    const handleClickOutside = () =>
+      setContextMenu({ visible: false, x: 0, y: 0, elementId: null });
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
   return (
-    <div className="p-4">
-      <Tabs defaultValue="elements" className="w-full">
-        <TabsList>
-          <TabsTrigger value="elements">Elements</TabsTrigger>
-          <TabsTrigger value="properties">Properties</TabsTrigger>
-        </TabsList>
-        <TabsContent value="elements">
-          <ScrollArea className="h-[300px]">
-            {elements.map((element) => (
-              <Button
-                key={element.id}
-                onClick={() => onElementSelect(element)}
-                variant={selectedElement?.id === element.id ? 'secondary' : 'ghost'}
-                className="w-full justify-start">
-                {element.type}
-              </Button>
-            ))}
-          </ScrollArea>
-        </TabsContent>
-        <TabsContent value="properties">
-          {selectedElement && (
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="elementType">Type</Label>
-                <Input id="elementType" value={selectedElement.type} disabled />
-              </div>
-              {Object.entries(selectedElement).map(([key, value]) => {
-                if (key !== 'id' && key !== 'type') {
-                  return (
-                    <div key={key}>
-                      <Label htmlFor={key}>{key}</Label>
-                      <Input
-                        id={key}
-                        value={value.toString()}
-                        onChange={(e) =>
-                          onElementUpdate(selectedElement.id, { [key]: e.target.value })
-                        }
-                      />
-                    </div>
-                  );
-                }
-                return null;
-              })}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+    <div className="w-64 bg-white border-r border-gray-200 p-4 overflow-y-auto">
+      {/* <h2 className="text-lg font-semibold mb-4">Elements</h2> */}
+      <div className="space-y-2">
+        {elements.map((el) => (
+          <div
+            key={el.id}
+            className={`flex items-center justify-between p-2 rounded cursor-pointer ${
+              selectedElement && selectedElement.id === el.id
+                ? 'bg-primary text-white'
+                : 'hover:bg-muted'
+            }`}
+            onClick={() => setSelectedElement(el)}
+            onContextMenu={(e) => handleContextMenu(e, el.id)}>
+            {el.type === 'text' && <Type size={15} className="mr-2" />}
+            {el.type === 'shape' && <Square size={15} className="mr-2" />}
+            {el.type === 'image' && <ImageIcon size={15} className="mr-2" />}
+            {el.type === 'video' && <Video size={15} className="mr-2" />}
+            {editingName === el.id ? (
+              <input
+                type="text"
+                value={el.name}
+                onChange={(e) => updateElement(el.id, { name: e.target.value })}
+                onBlur={() => setEditingName(null)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleNameChange(el.id, e.target.value);
+                  }
+                }}
+                autoFocus
+                className="flex-1 px-1 border rounded"
+              />
+            ) : (
+              <span className="flex-1">{el.name || el.type}</span>
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingName(el.id);
+              }}
+              className="p-1 text-gray-500 hover:text-blue-500">
+              {/* when selected need to change white color icon */}
+              <Edit3Icon
+                size={15}
+                className={`${selectedElement && selectedElement.id === el.id ? 'text-white' : 'text-gray-500'}`}
+              />
+            </button>
+          </div>
+        ))}
+      </div>
+      {contextMenu.visible && (
+        <div
+          className="absolute bg-white border border-gray-200 shadow-md rounded-md py-2 z-[1000]"
+          style={{
+            top: contextMenu.y,
+            left: contextMenu.x
+          }}>
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-muted"
+            onClick={() => handleContextMenuAction('duplicate')}>
+            <Copy size={16} className="inline mr-2" /> Duplicate
+          </button>
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-gray-100"
+            onClick={() => handleContextMenuAction('rename')}>
+            <Edit2 size={16} className="inline mr-2" /> Rename
+          </button>
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-gray-100"
+            onClick={() => handleContextMenuAction('delete')}>
+            <Trash2 size={16} className="inline mr-2" /> Delete
+          </button>
+        </div>
+      )}
     </div>
   );
 };

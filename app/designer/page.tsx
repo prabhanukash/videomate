@@ -19,14 +19,14 @@ export default function DesignerPage() {
   const [selectedElement, setSelectedElement] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  // const [stageSize, setStageSize] = useState(AdSizes['300X250']);
+  const [stageSize, setStageSize] = useState(AdSizes['300X250']);
   const [showJson, setShowJson] = useState(false);
   const [showResizeInputs, setShowResizeInputs] = useState(false);
   const [templateName, setTemplateName] = useState('Untitled Template');
   // const [versions, setVersions] = useState([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  // const [highlightedElement, setHighlightedElement] = useState(null);
+  const [highlightedElement, setHighlightedElement] = useState(null);
 
   const stageRef = useRef(null);
   const transformerRef = useRef(null);
@@ -190,19 +190,19 @@ export default function DesignerPage() {
     [showResizeInputs]
   );
 
-  const saveVersion = useCallback(
-    (isAutoSave = true) => {
-      // Implementation of saveVersion function
-    },
-    [elements, versions]
-  );
+  // const saveVersion = useCallback(
+  //   (isAutoSave = true) => {
+  //     // Implementation of saveVersion function
+  //   },
+  //   [elements, versions]
+  // );
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      saveVersion(true);
-    }, AUTO_SAVE_INTERVAL);
-    return () => clearInterval(interval);
-  }, [saveVersion]);
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     saveVersion(true);
+  //   }, AUTO_SAVE_INTERVAL);
+  //   return () => clearInterval(interval);
+  // }, [saveVersion]);
 
   const handleElementSelect = (element) => {
     setSelectedElement(element);
