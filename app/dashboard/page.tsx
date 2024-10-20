@@ -1,36 +1,70 @@
-'use client'
-import React from "react"
-import { Search, Plus, LayoutGrid, List, Upload, Settings, MoreVertical } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+'use client';
+import React from 'react';
+import { Search, Plus, LayoutGrid, List, MoreVertical } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  SelectValue
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { NewDesignDialog } from "./_components/new-design-dialog"
+  TableRow
+} from '@/components/ui/table';
+import { NewDesignDialog } from './_components/new-design-dialog';
 
 const designs = [
-  { id: 1, name: "Pepsi-300X250", type: "Custom size 3", size: "300 x 250 px", lastModified: "a day ago", author: "Bhanu Prakash" },
-  { id: 2, name: "Pepsi-640X360", type: "Design set", size: "26", lastModified: "a day ago", author: "Bhanu Prakash" },
-  { id: 3, name: "Gatorade-300X250", type: "Design set", size: "5", lastModified: "2 days ago", author: "Bhanu Prakash" },
-  { id: 4, name: "Gatorade-1080X1080", type: "Instagram Video Post", size: "1080 x 1080 px", lastModified: "5 months ago", author: "Bhanu Prakash" },
-  { id: 5, name: "Spotpet-300X250", type: "Custom size 1", size: "300 x 250 px", lastModified: "7 months ago", author: "Bhanu Prakash" },
-]
+  {
+    id: 1,
+    name: 'Pepsi-300X250',
+    type: 'Custom size 3',
+    size: '300 x 250 px',
+    lastModified: 'a day ago',
+    author: 'Bhanu Prakash'
+  },
+  {
+    id: 2,
+    name: 'Pepsi-640X360',
+    type: 'Design set',
+    size: '26',
+    lastModified: 'a day ago',
+    author: 'Bhanu Prakash'
+  },
+  {
+    id: 3,
+    name: 'Gatorade-300X250',
+    type: 'Design set',
+    size: '5',
+    lastModified: '2 days ago',
+    author: 'Bhanu Prakash'
+  },
+  {
+    id: 4,
+    name: 'Gatorade-1080X1080',
+    type: 'Instagram Video Post',
+    size: '1080 x 1080 px',
+    lastModified: '5 months ago',
+    author: 'Bhanu Prakash'
+  },
+  {
+    id: 5,
+    name: 'Spotpet-300X250',
+    type: 'Custom size 1',
+    size: '300 x 250 px',
+    lastModified: '7 months ago',
+    author: 'Bhanu Prakash'
+  }
+];
 
 export default function Dashboard() {
-  const [isNewDesignOpen, setIsNewDesignOpen] = React.useState(false)
+  const [isNewDesignOpen, setIsNewDesignOpen] = React.useState(false);
 
   return (
     <div className="flex h-screen bg-white">
@@ -133,5 +167,5 @@ export default function Dashboard() {
       </main>
       <NewDesignDialog isOpen={isNewDesignOpen} onClose={() => setIsNewDesignOpen(false)} />
     </div>
-  )
+  );
 }

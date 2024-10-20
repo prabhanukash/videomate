@@ -5,18 +5,18 @@ const features = [
   {
     icon: <Video className="h-12 w-12 text-blue-600" />,
     title: 'Video Generation API',
-    description: 'Create stunning videos programmatically with our powerful API.',
+    description: 'Create stunning videos programmatically with our powerful API.'
   },
   {
     icon: <FileSpreadsheet className="h-12 w-12 text-blue-600" />,
     title: 'Spreadsheet to Video',
-    description: 'Convert your spreadsheet data into engaging video content effortlessly.',
+    description: 'Convert your spreadsheet data into engaging video content effortlessly.'
   },
   {
     icon: <Code className="h-12 w-12 text-blue-600" />,
     title: 'Developer Friendly',
-    description: 'Easy integration with your existing projects and workflows.',
-  },
+    description: 'Easy integration with your existing projects and workflows.'
+  }
 ];
 
 export default function Features() {

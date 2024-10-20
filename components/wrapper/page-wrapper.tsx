@@ -1,6 +1,6 @@
-import Footer from './footer'
-import NavBar from './navbar'
-
+import Footer from './footer';
+import NavBar from './navbar';
+import React from 'react';
 export default function PageWrapper({ children }: { children: React.ReactNode }) {
   return (
     <>
@@ -11,5 +11,5 @@ export default function PageWrapper({ children }: { children: React.ReactNode })
       </main>
       <Footer />
     </>
-  )
+  );
 }

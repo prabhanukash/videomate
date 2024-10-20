@@ -1,16 +1,16 @@
-"use client"
-
-import ModeToggle from '@/components/mode-toggle'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogClose } from '@/components/ui/dialog'
-import { Separator } from '@/components/ui/separator'
-import { SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { UserProfile } from '@/components/user-profile'
-import config from '@/config'
-import { HamburgerMenuIcon } from '@radix-ui/react-icons'
-import { Banknote, Folder, HomeIcon, Settings } from 'lucide-react'
-import Link from 'next/link'
-import { ReactNode } from 'react'
+'use client';
+import React from 'react';
+import ModeToggle from '@/components/mode-toggle';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogClose } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
+import { SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { UserProfile } from '@/components/user-profile';
+import config from '@/config';
+import { HamburgerMenuIcon } from '@radix-ui/react-icons';
+import { Banknote, Folder, HomeIcon, Settings } from 'lucide-react';
+import Link from 'next/link';
+import { ReactNode } from 'react';
 
 export default function DashboardTopNav({ children }: { children: ReactNode }) {
   return (
@@ -73,5 +73,5 @@ export default function DashboardTopNav({ children }: { children: ReactNode }) {
       </header>
       {children}
     </div>
-  )
+  );
 }

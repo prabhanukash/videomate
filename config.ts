@@ -1,7 +1,7 @@
 const config = {
-    auth: {
-        enabled: true,
-    }
+  auth: {
+    enabled: true
+  }
 };
 
 export default config;

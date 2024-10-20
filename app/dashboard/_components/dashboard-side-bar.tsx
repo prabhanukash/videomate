@@ -1,20 +1,19 @@
-"use client"
+'use client';
 
-import { Separator } from '@/components/ui/separator'
-import clsx from 'clsx'
-import {
-  PanelsTopLeft,
-  LayoutPanelLeft,
-  Folder,
-  Settings,
-  UserPlus,
-} from "lucide-react"
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Button } from "@/components/ui/button";
+import React from 'react';
+import { Separator } from '@/components/ui/separator';
+import clsx from 'clsx';
+import { PanelsTopLeft, LayoutPanelLeft, Settings, UserPlus } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 
 export default function DashboardSideBar() {
   const pathname = usePathname();
+
+  // Define a variable for the common class names
+  const activeClassName =
+    'flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-gray-900 transition-all hover:text-gray-900 dark:bg-gray-800 dark:text-gray-50 dark:hover:text-gray-50';
 
   return (
     <div className="lg:block hidden border-r h-full">
@@ -43,41 +42,47 @@ export default function DashboardSideBar() {
                   BP
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-semibold">Bhanu Prakash's Project</span>
+                  <span className="font-semibold">Bhanu Prakash&apos;s Project</span>
                 </div>
               </div>
             </div>
             <Link
-              className={clsx("flex items-center gap-2 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50", {
-                "flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-gray-900  transition-all hover:text-gray-900 dark:bg-gray-800 dark:text-gray-50 dark:hover:text-gray-50": pathname === "/dashboard"
-              })}
-              href="/dashboard"
-            >
+              className={clsx(
+                'flex items-center gap-2 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50',
+                {
+                  [activeClassName]: pathname === '/dashboard'
+                }
+              )}
+              href="/dashboard">
               <div className="border rounded-lg dark:bg-black dark:border-gray-800 border-gray-400 p-1 bg-white">
                 <PanelsTopLeft className="h-3 w-3" />
               </div>
               Designs
             </Link>
             <Link
-              className={clsx("flex items-center gap-2 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50", {
-                "flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-gray-900  transition-all hover:text-gray-900 dark:bg-gray-800 dark:text-gray-50 dark:hover:text-gray-50": pathname === "/dashboard/projects"
-              })}
-              href="/dashboard/projects"
-            >
+              className={clsx(
+                'flex items-center gap-2 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50',
+                {
+                  [activeClassName]: pathname === '/dashboard/projects'
+                }
+              )}
+              href="/dashboard/projects">
               <div className="border rounded-lg dark:bg-black dark:border-gray-800 border-gray-400 p-1 bg-white">
                 <LayoutPanelLeft className="h-3 w-3" />
               </div>
               Custom Templates
             </Link>
-            
+
             <Separator className="my-3" />
             <Link
-              className={clsx("flex items-center gap-2 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50", {
-                "flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-gray-900  transition-all hover:text-gray-900 dark:bg-gray-800 dark:text-gray-50 dark:hover:text-gray-50": pathname === "/dashboard/settings"
-              })}
+              className={clsx(
+                'flex items-center gap-2 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50',
+                {
+                  [activeClassName]: pathname === '/dashboard/settings'
+                }
+              )}
               href="/dashboard/settings"
-              id="onboarding"
-            >
+              id="onboarding">
               <div className="border rounded-lg dark:bg-black dark:border-gray-800 border-gray-400 p-1 bg-white">
                 <Settings className="h-3 w-3" />
               </div>
@@ -94,5 +99,5 @@ export default function DashboardSideBar() {
         </div>
       </div>
     </div>
-  )
+  );
 }

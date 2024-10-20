@@ -1,22 +1,22 @@
-import React from 'react'
+import React from 'react';
 
 interface TimelineProgressorProps {
-  height?: number
-  color?: string
-  className?: string
-  topWidth?: number
-  topHeight?: number
+  height?: number;
+  color?: string;
+  className?: string;
+  topWidth?: number;
+  topHeight?: number;
 }
 
-export default function TimelineProgressor({ 
-  height = 200, 
-  color = '#EF4444', 
+export default function TimelineProgressor({
+  height = 200,
+  color = '#EF4444',
   className = '',
   topWidth = 16,
   topHeight = 24 // Height of the top part
 }: TimelineProgressorProps) {
   const halfTopWidth = topWidth / 2;
-  
+
   return (
     <svg
       width={topWidth}
@@ -24,8 +24,7 @@ export default function TimelineProgressor({
       viewBox={`0 0 ${topWidth} ${height}`}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={className}
-    >
+      className={className}>
       <path
         d={`
           M0 0
@@ -39,5 +38,5 @@ export default function TimelineProgressor({
       />
       <rect x={halfTopWidth - 1} y={topHeight} width="2" height={height - topHeight} fill={color} />
     </svg>
-  )
+  );
 }

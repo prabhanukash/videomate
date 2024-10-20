@@ -1,0 +1,28 @@
+name: Docker Image CI on tag
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+
+jobs:
+  
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build the Docker image
+        run: docker build . --file ./.dockerfile -t '${{ secrets.ACR_SERVER }}/${{ github.event.repository.name }}:${{ github.ref_name}}' -t '${{ secrets.ACR_SERVER }}/${{ github.event.repository.name }}:latest'
+
+      - name: Docker login
+        run: docker login ${{ secrets.ACR_SERVER }} --username ${{ secrets.ACR_USERNAME }} --password ${{ secrets.ACR_PASSWORD }}
+
+      - name: Push the Docker image (tag)
+        run: docker push ${{ secrets.ACR_SERVER }}/${{ github.event.repository.name }}:${{ github.ref_name }}
+
+      - name: Push the Docker image (latest)
+        run: docker push ${{ secrets.ACR_SERVER }}/${{ github.event.repository.name }}:latest

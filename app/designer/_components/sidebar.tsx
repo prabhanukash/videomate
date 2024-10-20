@@ -1,26 +1,18 @@
-import AppSidebar from "./app-sidebar"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Separator } from "@/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
+import React from 'react';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import AppSidebar from './app-sidebar';
+interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
+  className?: string;
+}
 
-export default function Sidebar() {
+const Sidebar: React.FC<SidebarProps> = ({ className, ...props }) => {
   return (
     <SidebarProvider
       defaultOpen={false}
-      className="w-[40px] h-full bg-white border-r border-gray-200"
-    >
+      className="w-[40px] h-full bg-white border-r border-gray-200">
       <AppSidebar />
     </SidebarProvider>
-  )
-}
+  );
+};
+
+export default Sidebar;

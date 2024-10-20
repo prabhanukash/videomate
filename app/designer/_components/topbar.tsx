@@ -1,19 +1,30 @@
-'use client'
+'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  ArrowLeft, Check, X,
-  Type, Square, ImageIcon, Video, Undo, Redo, 
-  FileJson, Upload, Braces, Maximize2, TimerReset
+import {
+  ArrowLeft,
+  Check,
+  X,
+  Type,
+  Square,
+  ImageIcon,
+  Video,
+  Undo,
+  Redo,
+  FileJson,
+  Upload,
+  Braces,
+  Maximize2,
+  TimerReset
 } from 'lucide-react';
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface TopbarProps {
   addElement: (type: string, event?: React.ChangeEvent<HTMLInputElement> | null) => void;
@@ -36,17 +47,14 @@ const Topbar: React.FC<TopbarProps> = ({
   addElement,
   undo,
   redo,
-  historyIndex,
-  historyLength,
   saveTemplate,
-  loadTemplate,
   toggleJson,
   toggleResizeInputs,
   showVersionHistory,
   handleImageUpload,
   handleVideoUpload,
   initialTemplateName,
-  onTemplateNameChange,
+  onTemplateNameChange
 }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(initialTemplateName);
@@ -111,10 +119,9 @@ const Topbar: React.FC<TopbarProps> = ({
               </Button>
             </div>
           ) : (
-            <h1 
-              onClick={handleNameClick} 
-              className="text-xl font-semibold cursor-pointer transition-colors duration-200 hover:text-primary"
-            >
+            <h1
+              onClick={handleNameClick}
+              className="text-xl font-semibold cursor-pointer transition-colors duration-200 hover:text-primary">
               {initialTemplateName}
             </h1>
           )}
@@ -123,7 +130,11 @@ const Topbar: React.FC<TopbarProps> = ({
         <div className="flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={() => addElement('text')} className='bg-primary hover:bg-primary/80 text-white'>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => addElement('text')}
+                className="bg-primary hover:bg-primary/80 text-white">
                 <Type className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -132,7 +143,11 @@ const Topbar: React.FC<TopbarProps> = ({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={() => addElement('shape')} className='bg-primary hover:bg-primary/80 text-white'>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => addElement('shape')}
+                className="bg-primary hover:bg-primary/80 text-white">
                 <Square className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -141,7 +156,10 @@ const Topbar: React.FC<TopbarProps> = ({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className='bg-primary hover:bg-primary/80 text-white'>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="bg-primary hover:bg-primary/80 text-white">
                 <Upload className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -150,14 +168,24 @@ const Topbar: React.FC<TopbarProps> = ({
                 <label className="flex items-center cursor-pointer">
                   <ImageIcon className="mr-2 h-4 w-4" />
                   <span>Upload Image</span>
-                  <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*"  />
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={handleImageUpload}
+                    accept="image/*"
+                  />
                 </label>
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <label className="flex items-center cursor-pointer">
                   <Video className="mr-2 h-4 w-4" />
                   <span>Upload Video</span>
-                  <input type="file" className="hidden" onChange={handleVideoUpload} accept="video/*" />
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={handleVideoUpload}
+                    accept="video/*"
+                  />
                 </label>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -165,25 +193,37 @@ const Topbar: React.FC<TopbarProps> = ({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={undo} className='bg-primary hover:bg-primary/80 text-white'>
-              <Undo className="h-4 w-4" />
-            </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={undo}
+                className="bg-primary hover:bg-primary/80 text-white">
+                <Undo className="h-4 w-4" />
+              </Button>
             </TooltipTrigger>
             <TooltipContent>Undo</TooltipContent>
           </Tooltip>
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={redo} className='bg-primary hover:bg-primary/80 text-white'>
-              <Redo className="h-4 w-4" />
-            </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={redo}
+                className="bg-primary hover:bg-primary/80 text-white">
+                <Redo className="h-4 w-4" />
+              </Button>
             </TooltipTrigger>
             <TooltipContent>Redo</TooltipContent>
           </Tooltip>
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={saveTemplate} className='bg-primary hover:bg-primary/80 text-white'>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={saveTemplate}
+                className="bg-primary hover:bg-primary/80 text-white">
                 <FileJson className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -192,7 +232,11 @@ const Topbar: React.FC<TopbarProps> = ({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={toggleJson} className='bg-primary hover:bg-primary/80 text-white'>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleJson}
+                className="bg-primary hover:bg-primary/80 text-white">
                 <Braces className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -201,7 +245,11 @@ const Topbar: React.FC<TopbarProps> = ({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={toggleResizeInputs} className='bg-primary hover:bg-primary/80 text-white'>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleResizeInputs}
+                className="bg-primary hover:bg-primary/80 text-white">
                 <Maximize2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -210,7 +258,11 @@ const Topbar: React.FC<TopbarProps> = ({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={showVersionHistory} className='bg-primary hover:bg-primary/80 text-white'>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={showVersionHistory}
+                className="bg-primary hover:bg-primary/80 text-white">
                 <TimerReset className="h-4 w-4" />
               </Button>
             </TooltipTrigger>

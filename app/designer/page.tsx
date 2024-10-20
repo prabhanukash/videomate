@@ -1,128 +1,132 @@
-'use client'
+'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
-import Topbar from './_components/topbar'
-import Canvas from './_components/canvas'
-import Sidebar from './_components/sidebar'
-import Timeline from './_components/timeline'
-import PropertiesPanel from './_components/properties-panel'
-import JsonEditorPanel from './_components/json-editor-panel'
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Topbar from './_components/topbar';
+import Canvas from './_components/canvas';
+import Sidebar from './_components/sidebar';
+import Timeline from './_components/timeline';
+import PropertiesPanel from './_components/properties-panel';
+import JsonEditorPanel from './_components/json-editor-panel';
 // import VersionHistoryModal from './_components/version-history-modal'
-import { AdSizes } from '@/utils/ad-sizes'
-import { ScrollArea } from "@/components/ui/scroll-area"
-import LeftSidebar from './_components/elements-panel'
-import { Stage, Layer, Transformer } from 'react-konva'
-
-const MAX_AUTO_VERSIONS = 50
-const AUTO_SAVE_INTERVAL = 5000 // 5 seconds
+import { AdSizes } from '@/utils/ad-sizes';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import ElementsPanel from './_components/elements-panel';
+import { Rect, Circle, Text } from 'react-konva';
+const AUTO_SAVE_INTERVAL = 5000; // 5 seconds
 
 export default function DesignerPage() {
-  const [elements, setElements] = useState([])
-  const [selectedElement, setSelectedElement] = useState(null)
-  const [history, setHistory] = useState([])
-  const [historyIndex, setHistoryIndex] = useState(-1)
-  const [stageSize, setStageSize] = useState(AdSizes['300X250'])
-  const [showJson, setShowJson] = useState(false)
-  const [showResizeInputs, setShowResizeInputs] = useState(false)
-  const [customWidth, setCustomWidth] = useState(stageSize.width)
-  const [customHeight, setCustomHeight] = useState(stageSize.height)
-  const [templateName, setTemplateName] = useState('Untitled Template')
-  const [isEditingName, setIsEditingName] = useState(false)
-  const [tempName, setTempName] = useState('')
-  const [versions, setVersions] = useState([])
-  const [showVersionHistory, setShowVersionHistory] = useState(false)
-  const [selectedVersion, setSelectedVersion] = useState(null)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [highlightedElement, setHighlightedElement] = useState(null);
+  const [elements, setElements] = useState([]);
+  const [selectedElement, setSelectedElement] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  // const [stageSize, setStageSize] = useState(AdSizes['300X250']);
+  const [showJson, setShowJson] = useState(false);
+  const [showResizeInputs, setShowResizeInputs] = useState(false);
+  const [templateName, setTemplateName] = useState('Untitled Template');
+  // const [versions, setVersions] = useState([]);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  // const [highlightedElement, setHighlightedElement] = useState(null);
 
-  const stageRef = useRef(null)
-  const transformerRef = useRef(null)
-  const animationRef = useRef(null)
-    
+  const stageRef = useRef(null);
+  const transformerRef = useRef(null);
+
   const addElement = (type, event = null) => {
     let newElement = {
-        id: Date.now().toString(),
-        name: `New ${type}`,
-        type,
-        x: 100,
-        y: 100,
-        width: 100,
-        height: 100,
-        text: type === 'text' ? 'New Text' : '',
-        fill: type === 'shape' ? 'bg-blue' : 'black',
-        fontSize: 20,
-        fontFamily: 'Arial',
-        rotation: 0,
-        duration: 5,
-        startTime: 0,
-      };
-  
-      if (type === 'image' && event) {
-        const file = event.target.files[0];
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = new window.Image();
-          img.onload = () => {
-            const aspect = img.width / img.height;
-            newElement = {
-              ...newElement,
-              width: 200,
-              height: 200 / aspect,
-              image: e.target.result,
-            };
-            const newElements = [...elements, newElement];
-            setElements(newElements);
-            addToHistory(newElements);
+      id: Date.now().toString(),
+      name: `New ${type}`,
+      type,
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 100,
+      text: type === 'text' ? 'New Text' : '',
+      fill: type === 'shape' ? 'bg-blue' : 'black',
+      fontSize: 20,
+      fontFamily: 'Arial',
+      rotation: 0,
+      duration: 5,
+      startTime: 0
+    };
+
+    if (type === 'image' && event) {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const aspect = img.width / img.height;
+          newElement = {
+            ...newElement,
+            width: 200,
+            height: 200 / aspect,
+            image: e.target.result
           };
-          img.src = e.target.result;
+          const newElements = [...elements, newElement];
+          setElements(newElements);
+          addToHistory(newElements);
         };
-        reader.readAsDataURL(file);
-      } else {
-        const newElements = [...elements, newElement];
-        setElements(newElements);
-        addToHistory(newElements);
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    } else {
+      const newElements = [...elements, newElement];
+      setElements(newElements);
+      addToHistory(newElements);
+    }
+  };
+
+  const updateElement = useCallback(
+    (id, newProps) => {
+      const newElements = elements.map((el) => (el.id === id ? { ...el, ...newProps } : el));
+      setElements(newElements);
+      addToHistory(newElements);
+      if (selectedElement && selectedElement.id === id) {
+        setSelectedElement({ ...selectedElement, ...newProps });
       }
-  }
+    },
+    [elements, selectedElement]
+  );
 
-  const updateElement = useCallback((id, newProps) => {
-    const newElements = elements.map(el => el.id === id ? { ...el, ...newProps } : el);
-    setElements(newElements);
-    addToHistory(newElements);
-    if (selectedElement && selectedElement.id === id) {
-      setSelectedElement({ ...selectedElement, ...newProps });
-    }  }, [elements, selectedElement])
-
-  const addToHistory = useCallback((newElements) => {
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(newElements);
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  }, [history, historyIndex])
+  const addToHistory = useCallback(
+    (newElements) => {
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(newElements);
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+    },
+    [history, historyIndex]
+  );
 
   const undo = useCallback(() => {
     if (historyIndex > 0) {
-        const newIndex = historyIndex - 1;
-        setHistoryIndex(newIndex);
-        setElements(history[newIndex]);
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setElements(history[newIndex]);
     }
-  }, [historyIndex, history])
+  }, [historyIndex, history]);
 
   const redo = useCallback(() => {
     if (historyIndex < history.length - 1) {
-        const newIndex = historyIndex + 1;
-        setHistoryIndex(newIndex);
-        setElements(history[newIndex]);
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setElements(history[newIndex]);
     }
-  }, [historyIndex, history])
+  }, [historyIndex, history]);
 
-  const handleImageUpload = useCallback((e) => {
-    // Implementation of handleImageUpload function
-  }, [elements, addToHistory])
+  const handleImageUpload = useCallback(
+    (e) => {
+      // Implementation of handleImageUpload function
+    },
+    [elements, addToHistory]
+  );
 
-  const handleVideoUpload = useCallback((e) => {
-    // Implementation of handleVideoUpload function
-  }, [elements, addToHistory])
+  const handleVideoUpload = useCallback(
+    (e) => {
+      // Implementation of handleVideoUpload function
+    },
+    [elements, addToHistory]
+  );
 
   const saveTemplate = useCallback(() => {
     const template = JSON.stringify(elements);
@@ -132,18 +136,21 @@ export default function DesignerPage() {
     a.href = url;
     a.download = 'template.json';
     a.click();
-  }, [elements])
+  }, [elements]);
 
-  const loadTemplate = useCallback((e) => {
-    const file = e.target.files[0];
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const loadedElements = JSON.parse(event.target.result);
-      setElements(loadedElements);
-      addToHistory(loadedElements);
-    };
-    reader.readAsText(file);
-  }, [addToHistory])
+  const loadTemplate = useCallback(
+    (e) => {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const loadedElements = JSON.parse(event.target.result);
+        setElements(loadedElements);
+        addToHistory(loadedElements);
+      };
+      reader.readAsText(file);
+    },
+    [addToHistory]
+  );
   const updateCanvasFromJson = (newJsonContent) => {
     try {
       const newElements = JSON.parse(newJsonContent);
@@ -155,14 +162,14 @@ export default function DesignerPage() {
     }
   };
   const duplicateElement = (id) => {
-    const elementToDuplicate = elements.find(el => el.id === id);
+    const elementToDuplicate = elements.find((el) => el.id === id);
     if (elementToDuplicate) {
       const newElement = {
         ...elementToDuplicate,
         id: Date.now().toString(),
         name: `${elementToDuplicate.name} (Copy)`,
         x: elementToDuplicate.x + 10,
-        y: elementToDuplicate.y + 10,
+        y: elementToDuplicate.y + 10
       };
       const newElements = [...elements, newElement];
       setElements(newElements);
@@ -170,26 +177,32 @@ export default function DesignerPage() {
     }
   };
   const deleteElement = (id) => {
-    const newElements = elements.filter(el => el.id !== id);
+    const newElements = elements.filter((el) => el.id !== id);
     setElements(newElements);
     addToHistory(newElements);
     if (selectedElement && selectedElement.id === id) {
       setSelectedElement(null);
     }
   };
-  const toggleJson = useCallback(() => setShowJson(!showJson), [showJson])
-  const toggleResizeInputs = useCallback(() => setShowResizeInputs(!showResizeInputs), [showResizeInputs])
+  const toggleJson = useCallback(() => setShowJson(!showJson), [showJson]);
+  const toggleResizeInputs = useCallback(
+    () => setShowResizeInputs(!showResizeInputs),
+    [showResizeInputs]
+  );
 
-  const saveVersion = useCallback((isAutoSave = true) => {
-    // Implementation of saveVersion function
-  }, [elements, versions])
+  const saveVersion = useCallback(
+    (isAutoSave = true) => {
+      // Implementation of saveVersion function
+    },
+    [elements, versions]
+  );
 
   useEffect(() => {
     const interval = setInterval(() => {
-      saveVersion(true)
-    }, AUTO_SAVE_INTERVAL)
-    return () => clearInterval(interval)
-  }, [saveVersion])
+      saveVersion(true);
+    }, AUTO_SAVE_INTERVAL);
+    return () => clearInterval(interval);
+  }, [saveVersion]);
 
   const handleElementSelect = (element) => {
     setSelectedElement(element);
@@ -201,7 +214,7 @@ export default function DesignerPage() {
       elements.map((el) => {
         return {
           ...el,
-          isDragging: el.id === id,
+          isDragging: el.id === id
         };
       })
     );
@@ -215,7 +228,7 @@ export default function DesignerPage() {
           ...el,
           isDragging: false,
           x: el.id === id ? e.target.x() : el.x,
-          y: el.id === id ? e.target.y() : el.y,
+          y: el.id === id ? e.target.y() : el.y
         };
       })
     );
@@ -227,7 +240,7 @@ export default function DesignerPage() {
       elements.map((el) => {
         return {
           ...el,
-          isTransforming: el.id === selectedElement?.id,
+          isTransforming: el.id === selectedElement?.id
         };
       })
     );
@@ -251,7 +264,7 @@ export default function DesignerPage() {
             width: node.width() * scaleX,
             height: node.height() * scaleY,
             rotation: node.rotation(),
-            isTransforming: false,
+            isTransforming: false
           };
         }
         return el;
@@ -288,8 +301,8 @@ export default function DesignerPage() {
               ...el,
               keyframes: {
                 ...el.keyframes,
-                [time]: { ...el.keyframes?.[time], ...properties },
-              },
+                [time]: { ...el.keyframes?.[time], ...properties }
+              }
             }
           : el
       )
@@ -301,9 +314,12 @@ export default function DesignerPage() {
   const interpolateProperties = (element, time) => {
     if (!element.keyframes) return element;
 
-    const keyframeTimes = Object.keys(element.keyframes).map(Number).sort((a, b) => a - b);
-    const prevKeyframeTime = keyframeTimes.filter(t => t <= time).pop() || keyframeTimes[0];
-    const nextKeyframeTime = keyframeTimes.find(t => t > time) || keyframeTimes[keyframeTimes.length - 1];
+    const keyframeTimes = Object.keys(element.keyframes)
+      .map(Number)
+      .sort((a, b) => a - b);
+    const prevKeyframeTime = keyframeTimes.filter((t) => t <= time).pop() || keyframeTimes[0];
+    const nextKeyframeTime =
+      keyframeTimes.find((t) => t > time) || keyframeTimes[keyframeTimes.length - 1];
 
     if (prevKeyframeTime === nextKeyframeTime) {
       return { ...element, ...element.keyframes[prevKeyframeTime] };
@@ -391,16 +407,16 @@ export default function DesignerPage() {
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <div className="flex flex-1 overflow-hidden mt-12">
-            <ScrollArea className="border-r border-border h-[65%]">
-              <LeftSidebar
-                elements={elements}
-                selectedElement={selectedElement}
-                setSelectedElement={setSelectedElement}
-                updateElement={updateElement}
-                duplicateElement={duplicateElement}
-                deleteElement={deleteElement}
-              />
-            </ScrollArea>
+          <ScrollArea className="border-r border-border h-[65%]">
+            <ElementsPanel
+              elements={elements}
+              selectedElement={selectedElement}
+              setSelectedElement={setSelectedElement}
+              updateElement={updateElement}
+              duplicateElement={duplicateElement}
+              deleteElement={deleteElement}
+            />
+          </ScrollArea>
           {showJson && (
             <ScrollArea className="border-r border-border h-[65%]">
               <JsonEditorPanel
@@ -420,23 +436,20 @@ export default function DesignerPage() {
             selectedElement={selectedElement}
             setSelectedElement={setSelectedElement}
             handleDragEnd={(e, id) => {
-                // Implement handleDragEnd logic
-              }}
-              handleTransformEnd={(e, id) => {
-                // Implement handleTransformEnd logic
-              }}
-              transformerRef={transformerRef}
-              ImageElement={() => null} // Replace with actual ImageElement component if needed
-            />
+              // Implement handleDragEnd logic
+            }}
+            handleTransformEnd={(e, id) => {
+              // Implement handleTransformEnd logic
+            }}
+            transformerRef={transformerRef}
+            ImageElement={() => null} // Replace with actual ImageElement component if needed
+          />
           <ScrollArea className="w-1/4 border-l h-[65%] mt-1">
-            <PropertiesPanel
-              selectedElement={selectedElement}
-              updateElement={updateElement}
-            />
+            <PropertiesPanel selectedElement={selectedElement} updateElement={updateElement} />
           </ScrollArea>
         </div>
         <ScrollArea>
-            <Timeline 
+          <Timeline
             elements={elements}
             selectedElement={selectedElement}
             currentTime={currentTime}
@@ -445,9 +458,9 @@ export default function DesignerPage() {
             setCurrentTime={setCurrentTime}
             playAnimation={() => setIsPlaying(true)}
             pauseAnimation={() => setIsPlaying(false)}
-            />
+          />
         </ScrollArea>
       </div>
     </div>
-  )
+  );
 }

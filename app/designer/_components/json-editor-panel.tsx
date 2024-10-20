@@ -1,53 +1,50 @@
 import React from 'react';
-import JSONEditor from 'react-json-editor-ajrm';
-import locale from 'react-json-editor-ajrm/locale/en';
+import dynamic from 'next/dynamic';
+
+const JsonEditor = dynamic(() => import('react-json-editor-ajrm'), { ssr: false });
+
+// Define a type for the JSON data
+type JsonData = Record<string, unknown>;
 
 interface JsonEditorPanelProps {
-  elements: any[];
-  updateCanvasFromJson: (json: string) => void;
-  highlightSelectedElementInJson: (json: string) => string;
-  customJsonEditorTheme: any;
+  data: JsonData;
+  onChange: (data: JsonData) => void;
+  className?: string;
 }
 
-const JsonEditorPanel: React.FC<JsonEditorPanelProps> = ({
-  className,
-  elements,
-  updateCanvasFromJson,
-  highlightSelectedElementInJson,
-  customJsonEditorTheme,
-}) => (
-  <div className="w-96 bg-white p-4 overflow-y-auto border-r border-gray-300">
-    <JSONEditor
-      id="json-editor"
-      placeholder={elements}
-      theme={customJsonEditorTheme}
-      locale={locale}
-      height="100%"
-      width="100%"
-      colors={{
-        default: '#333',
-        background: 'white',
-        string: '#C41A16',
-        number: '#1A01CC',
-        colon: '#333',
-        keys: '#881391',
-        keys_whiteSpace: '#333',
-        primitive: '#1A01CC',
-      }}
-      style={{
-        body: {
-          fontSize: '14px',
-          fontFamily: 'monospace',
-        },
-      }}
-      onBlur={(value) => {
-        if (value.jsObject) {
-          updateCanvasFromJson(JSON.stringify(value.jsObject));
-        }
-      }}
-      renderContent={highlightSelectedElementInJson}
-    />
-  </div>
-);
+const JsonEditorPanel: React.FC<JsonEditorPanelProps> = ({ data, onChange, className }) => {
+  const handleChange = (value: { jsObject: JsonData }) => {
+    onChange(value.jsObject);
+  };
+
+  return (
+    <div className={className}>
+      <JsonEditor
+        placeholder={data}
+        theme="light_mitsuketa_tribute"
+        locale="en"
+        height="550px"
+        width="100%"
+        onChange={handleChange}
+        colors={{
+          background: 'white',
+          default: 'black'
+        }}
+        style={{
+          body: {
+            fontSize: '14px'
+          }
+        }}
+        confirmGood={false}
+        viewOnly={false}
+        modifyErrorText={(err) => err}
+        onBlur={() => {}}
+        waitAfterKeyPress={1500}
+        statusBar={false}
+        keysWhiteSpace="normal"
+      />
+    </div>
+  );
+};
 
 export default JsonEditorPanel;
